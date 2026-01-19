@@ -1,0 +1,62 @@
+# FastShip Configuration Example
+# Copy this file to config.yaml and customize for your setup
+
+server:
+  port: 9000
+  host: "0.0.0.0"
+  tls:
+    enabled: false
+    cert_file: "/path/to/cert.pem"
+    key_file: "/path/to/key.pem"
+
+auth:
+  # Generate with: openssl rand -hex 32
+  webhook_secret: "your-secret-here-replace-this"
+
+dashboard:
+  enabled: false
+  username: "admin"
+  password: "change-me"
+
+logging:
+  level: "info"   # debug, info, warn, error
+  format: "text"  # json or text
+
+services:
+  # Example service configuration
+  myapp:
+    # Path to docker-compose.yml
+    compose_file: "/opt/apps/docker-compose.yml"
+
+    # Service name in docker-compose.yml
+    service_name: "myapp"
+
+    # Working directory for docker compose commands
+    working_dir: "/opt/apps"
+
+    # Health check configuration
+    health_check:
+      enabled: true
+      url: "http://localhost:8080/health"
+      timeout: 30s
+      interval: 2s
+      retries: 10
+
+    # Rollback configuration
+    rollback:
+      enabled: true
+      keep_images: 3
+
+    # Environment variables for deployment
+    env:
+      DEPLOY_ENV: "production"
+
+  # Add more services as needed
+  # another-service:
+  #   compose_file: "/opt/another/docker-compose.yml"
+  #   service_name: "web"
+  #   working_dir: "/opt/another"
+  #   health_check:
+  #     enabled: false
+  #   rollback:
+  #     enabled: false

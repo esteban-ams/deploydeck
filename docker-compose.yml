@@ -1,0 +1,25 @@
+# Docker Compose file for running FastShip
+# This is for deploying FastShip itself, not the services it manages
+
+version: '3.8'
+
+services:
+  fastship:
+    build: .
+    container_name: fastship
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      # Mount config file
+      - ./config.yaml:/app/config/config.yaml:ro
+      # Mount Docker socket to manage containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FASTSHIP_LOG_LEVEL=info
+    networks:
+      - fastship
+
+networks:
+  fastship:
+    driver: bridge

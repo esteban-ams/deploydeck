@@ -1,0 +1,28 @@
+[Unit]
+Description=FastShip - Webhook-based Docker deployment server
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+Group=docker
+WorkingDirectory=/opt/fastship
+ExecStart=/usr/local/bin/fastship --config /opt/fastship/config.yaml
+Restart=always
+RestartSec=5
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fastship
+
+# Environment
+Environment="FASTSHIP_LOG_LEVEL=info"
+
+[Install]
+WantedBy=multi-user.target

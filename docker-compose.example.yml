@@ -1,0 +1,20 @@
+# Example docker-compose.yml for testing FastShip
+# This represents a service that FastShip would deploy
+
+version: '3.8'
+
+services:
+  myapp:
+    image: nginx:latest
+    container_name: myapp
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      - DEPLOY_ENV=production
