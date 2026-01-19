@@ -6,12 +6,13 @@ WORKDIR /build
 # Install build dependencies
 RUN apk add --no-cache git
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy go mod file and download dependencies
+COPY go.mod ./
+RUN go mod download || true
 
-# Copy source code
+# Copy source code and generate go.sum
 COPY . .
+RUN go mod tidy
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o fastship ./cmd/fastship
