@@ -1,6 +1,6 @@
-# Binaries
-fastship
-fastship-*
+# Binaries (only in root, not cmd/fastship/)
+/fastship
+/fastship-*
 *.exe
 *.dll
 *.so
