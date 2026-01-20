@@ -63,12 +63,11 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 		})
 	}
 
-	// Verify webhook signature
-	headers := make(map[string]string)
-	for key, values := range c.Request().Header {
-		if len(values) > 0 {
-			headers[key] = values[0]
-		}
+	// Verify webhook signature (use case-insensitive header access)
+	headers := map[string]string{
+		"X-Hub-Signature-256": c.Request().Header.Get("X-Hub-Signature-256"),
+		"X-GitLab-Token":      c.Request().Header.Get("X-GitLab-Token"),
+		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
 	}
 
 	if err := h.verifier.Verify(headers, body); err != nil {
@@ -135,12 +134,11 @@ func (h *Handler) HandleRollback(c echo.Context) error {
 		})
 	}
 
-	// Verify webhook signature
-	headers := make(map[string]string)
-	for key, values := range c.Request().Header {
-		if len(values) > 0 {
-			headers[key] = values[0]
-		}
+	// Verify webhook signature (use case-insensitive header access)
+	headers := map[string]string{
+		"X-Hub-Signature-256": c.Request().Header.Get("X-Hub-Signature-256"),
+		"X-GitLab-Token":      c.Request().Header.Get("X-GitLab-Token"),
+		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
 	}
 
 	if err := h.verifier.Verify(headers, body); err != nil {
