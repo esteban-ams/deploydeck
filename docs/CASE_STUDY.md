@@ -6,6 +6,8 @@
 
 FastShip esta corriendo en produccion desde Enero 2026, gestionando deployments automatizados para 4 servicios en un servidor DigitalOcean. Reemplazo exitosamente a Watchtower, reduciendo el tiempo de deploy de ~5 minutos (polling) a ~76 segundos (webhook instantaneo).
 
+Desde Febrero 2026, FastShip soporta dos modos de deploy: **pull** (imagen precompilada) y **build** (desde codigo fuente), con rollback real basado en image tagging.
+
 ---
 
 ## Infraestructura
@@ -32,18 +34,45 @@ FastShip esta corriendo en produccion desde Enero 2026, gestionando deployments 
 
 ### Servicios Gestionados
 
-| Servicio | Stack | Imagen GHCR | Puerto |
-|----------|-------|-------------|--------|
-| Portfolio | FastHTML | `ghcr.io/esteban-ams/portafolio` | 5001 |
-| Komercia | Django | `ghcr.io/esteban-ams/erp-market-django` | 8000 |
-| Komercia Landing | FastHTML | `ghcr.io/esteban-ams/komercia-landing` | 5003 |
-| Metalurgica | FastHTML | `ghcr.io/esteban-ams/metalurgica-spa` | 5002 |
+| Servicio | Stack | Modo Deploy | Imagen/Repo | Puerto |
+|----------|-------|-------------|-------------|--------|
+| Portfolio | FastHTML | pull | `ghcr.io/esteban-ams/portafolio` | 5001 |
+| Komercia | Django | pull | `ghcr.io/esteban-ams/erp-market-django` | 8000 |
+| Komercia Landing | FastHTML | pull | `ghcr.io/esteban-ams/komercia-landing` | 5003 |
+| Metalurgica | FastHTML | pull | `ghcr.io/esteban-ams/metalurgica-spa` | 5002 |
+
+---
+
+## Modos de Deploy
+
+### Pull Mode (en uso en produccion)
+CI/CD construye la imagen, la sube a GHCR, y FastShip la descarga:
+
+```
+GitHub Actions → build → push GHCR → webhook → FastShip pull → deploy
+```
+
+### Build Mode (disponible desde Feb 2026)
+FastShip clona el repositorio y construye la imagen directamente en el servidor:
+
+```
+GitHub push → webhook → FastShip clone → docker compose build → deploy
+```
+
+**Cuando usar cada modo:**
+| Aspecto | Pull Mode | Build Mode |
+|---------|-----------|------------|
+| Requiere GHCR/DockerHub | Si | No |
+| Build en servidor | No | Si |
+| Ideal para | Imagenes publicas | Repos privadas, sin registry |
+| Velocidad | Rapido (solo pull) | Mas lento (build completo) |
+| Ejemplo timeout | 5 min | 10 min |
 
 ---
 
 ## Configuracion
 
-### config.yaml
+### config.yaml (Pull Mode)
 
 ```yaml
 server:
@@ -58,29 +87,13 @@ dashboard:
   username: "admin"
   password: "${FASTSHIP_DASHBOARD_PASSWORD}"
 
-logging:
-  level: "info"
-  format: "json"
-
 services:
-  portfolio:
-    compose_file: "/infrastructure/docker-compose.yml"
-    service_name: "portfolio"
-    working_dir: "/infrastructure"
-    health_check:
-      enabled: true
-      url: "http://portfolio:5001/"
-      timeout: 30s
-      interval: 2s
-      retries: 10
-    rollback:
-      enabled: true
-      keep_images: 3
-
   metalurgica:
+    mode: "pull"
     compose_file: "/infrastructure/docker-compose.yml"
     service_name: "metalurgica"
     working_dir: "/infrastructure"
+    timeout: 5m
     health_check:
       enabled: true
       url: "http://metalurgica:5002/"
@@ -90,8 +103,29 @@ services:
     rollback:
       enabled: true
       keep_images: 3
+```
 
-  # ... mas servicios
+### config.yaml (Build Mode)
+
+```yaml
+services:
+  myapp:
+    mode: "build"
+    branch: "main"
+    repo: "https://github.com/user/myapp.git"
+    clone_token_file: "/run/secrets/github_token"
+    compose_file: "docker-compose.yml"
+    service_name: "myapp"
+    working_dir: "/opt/builds"
+    timeout: 15m
+    prune_after_build: true
+    health_check:
+      enabled: true
+      url: "http://myapp:8080/health"
+      timeout: 30s
+    rollback:
+      enabled: true
+      keep_images: 3
 ```
 
 ### docker-compose.yml (FastShip service)
@@ -121,9 +155,9 @@ fastship:
 
 ---
 
-## Flujo de Deploy
+## Flujo de Deploy (7 pasos)
 
-### Diagrama
+### Pull Mode
 
 ```
 Developer          GitHub Actions         GHCR            FastShip          Docker
@@ -132,26 +166,91 @@ Developer          GitHub Actions         GHCR            FastShip          Dock
     |------------------->|                  |                 |                |
     |                    |  build image     |                 |                |
     |                    |----------------->|                 |                |
-    |                    |  push to GHCR    |                 |                |
-    |                    |----------------->|                 |                |
     |                    |                  |                 |                |
     |                    |  POST /api/deploy/metalurgica      |                |
     |                    |---------------------------------->|                |
-    |                    |                  |                 |  docker pull   |
+    |                    |                  |                 |                |
+    |                    |                  |                 | 1. Tag rollback|
     |                    |                  |                 |--------------->|
-    |                    |                  |                 |  health check  |
+    |                    |                  |                 | 2. docker pull |
     |                    |                  |                 |--------------->|
-    |                    |                  |                 |  [OK]          |
-    |                    |                  |                 |<---------------|
+    |                    |                  |                 | 3. compose up  |
+    |                    |                  |                 |--------------->|
+    |                    |                  |                 | 4. health check|
+    |                    |                  |                 |<-------------->|
+    |                    |                  |                 | 5. update state|
+    |                    |                  |                 | 6. cleanup tags|
+    |                    |                  |                 |--------------->|
     |                    |  200 OK          |                 |                |
     |                    |<----------------------------------|                |
-    |                    |                  |                 |                |
 ```
 
-### GitHub Actions Workflow
+### Build Mode
+
+```
+Developer          GitHub              FastShip              Docker
+    |                 |                    |                     |
+    |  git push       |                    |                     |
+    |---------------->|                    |                     |
+    |                 |  webhook payload   |                     |
+    |                 |------------------>|                     |
+    |                 |                    | 1. Tag rollback     |
+    |                 |                    |-------------------->|
+    |                 |                    | 2. Clone repo       |
+    |                 |                    | 3. compose build    |
+    |                 |                    |-------------------->|
+    |                 |                    | 4. compose up       |
+    |                 |                    |-------------------->|
+    |                 |                    | 5. health check     |
+    |                 |                    |<------------------->|
+    |                 |                    | 6. cleanup tags     |
+    |                 |                    |-------------------->|
+    |                 |                    | 7. auto-prune cache |
+    |                 |                    |-------------------->|
+    |                 |  200 OK           |                     |
+    |                 |<------------------|                     |
+```
+
+---
+
+## Seguridad
+
+### Autenticacion
+- Webhook secret con HMAC-SHA256 o shared secret
+- Soporte para headers de GitHub y GitLab
+
+### Tokens para Repos Privadas
+- `clone_token`: directo en YAML (no recomendado)
+- `clone_token_file`: lee desde archivo (Docker Secrets pattern, recomendado)
+- `FASTSHIP_CLONE_TOKEN`: variable de entorno (fallback)
+
+**Inyeccion automatica por proveedor:**
+| Proveedor | Formato |
+|-----------|---------|
+| GitHub | `x-access-token:<token>@github.com/...` |
+| GitLab | `oauth2:<token>@gitlab.com/...` |
+| Otros | `token:<token>@host/...` |
+
+---
+
+## Rollback
+
+### Como funciona
+1. Antes de cada deploy, FastShip etiqueta la imagen actual como `service:rollback-{timestamp}`
+2. Si el health check falla, restaura automaticamente la imagen con el tag de rollback
+3. Tags antiguos se eliminan automaticamente segun `keep_images` (default: 3)
+
+### Rollback manual
+```bash
+curl -X POST https://deploy.esteban-ams.cl/api/rollback/metalurgica \
+  -H "X-FastShip-Secret: $SECRET"
+```
+
+---
+
+## GitHub Actions Workflow
 
 ```yaml
-# .github/workflows/build-and-push.yml
 name: Build and Push to GHCR
 
 on:
@@ -171,9 +270,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/setup-buildx-action@v3
-
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -196,7 +293,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # FastShip webhook - triggers automatic deploy
       - name: Deploy to production
         if: github.ref == 'refs/heads/master'
         run: |
@@ -238,9 +334,11 @@ jobs:
 |---------|--------------------|--------------------|
 | Tiempo de deploy | ~5 min (polling) | ~76 seg (webhook) |
 | Deteccion de cambio | Cada 5 min | Instantaneo |
+| Modos de deploy | Solo pull | Pull + Build |
 | Health checks | No | Si |
-| Rollback automatico | No | Si |
-| Dashboard | No | Si |
+| Rollback automatico | No | Si (image tagging) |
+| Timeouts | No | Si (por servicio) |
+| Dashboard | No | Planeado |
 | Visibilidad | Logs | API + Dashboard |
 
 ---
@@ -253,17 +351,24 @@ jobs:
 
 ### 2. Confiabilidad
 - Health checks previenen deploys rotos
-- Rollback automatico si health falla
+- Rollback automatico via image tagging si health falla
+- Timeouts configurables evitan deploys colgados
 - Historial de deployments
 
-### 3. Simplicidad
+### 3. Flexibilidad
+- Pull mode para imagenes precompiladas (GHCR, Docker Hub)
+- Build mode para repos sin registry
+- Branch filtering para deploy solo en la rama correcta
+
+### 4. Simplicidad
 - Un archivo YAML de configuracion
 - Sin SSH keys en CI/CD
 - Sin exponer IPs del servidor
 
-### 4. Seguridad
-- Webhook autenticado con secret
+### 5. Seguridad
+- Webhook autenticado con HMAC-SHA256
 - HTTPS con Let's Encrypt
+- Tokens leidos desde archivos (Docker Secrets pattern)
 - Sin acceso SSH desde GitHub Actions
 
 ---
@@ -274,6 +379,8 @@ jobs:
 1. **Webhooks > Polling**: Respuesta instantanea vs esperar al intervalo
 2. **Health checks**: Evitan deployments de codigo roto
 3. **GHCR publico**: Sin necesidad de auth para pull
+4. **Image tagging para rollback**: Mas confiable que guardar metadata
+5. **Timeouts por servicio**: Builds pesados necesitan mas tiempo
 
 ### Mejoras identificadas
 1. **Dashboard**: Falta UI para ver estado sin CLI
@@ -287,8 +394,8 @@ jobs:
 
 ### Prerequisitos
 - Servidor con Docker y Docker Compose
-- Traefik configurado con SSL
-- Cuenta de GitHub con GHCR habilitado
+- Traefik configurado con SSL (o cualquier reverse proxy)
+- Cuenta de GitHub con GHCR habilitado (para pull mode)
 
 ### Pasos
 
@@ -296,12 +403,31 @@ jobs:
 ```yaml
 fastship:
   image: ghcr.io/esteban-ams/fastship:latest
-  # ... (ver config arriba)
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./config.yaml:/app/config.yaml:ro
+  environment:
+    - FASTSHIP_SECRET=${FASTSHIP_SECRET}
 ```
 
 2. **Crear config.yaml**
 ```yaml
-# Ver ejemplo en QUICKSTART.md
+server:
+  port: 9000
+auth:
+  webhook_secret: "${FASTSHIP_SECRET}"
+services:
+  myapp:
+    mode: "pull"  # o "build"
+    compose_file: "/path/to/docker-compose.yml"
+    service_name: "myapp"
+    timeout: 5m
+    health_check:
+      enabled: true
+      url: "http://myapp:8080/"
+    rollback:
+      enabled: true
+      keep_images: 3
 ```
 
 3. **Agregar secret en GitHub**
@@ -313,18 +439,22 @@ gh secret set FASTSHIP_SECRET --body "$(openssl rand -hex 32)"
 ```yaml
 - name: Deploy
   run: |
-    curl -X POST https://your-domain.com/api/deploy/service \
-      -H "X-FastShip-Secret: ${{ secrets.FASTSHIP_SECRET }}"
+    curl -sS -X POST https://your-domain.com/api/deploy/myapp \
+      -H "X-FastShip-Secret: ${{ secrets.FASTSHIP_SECRET }}" \
+      -H "Content-Type: application/json" \
+      -d '{"image": "ghcr.io/user/myapp:latest"}' \
+      --fail --show-error
 ```
 
 ---
 
 ## Conclusion
 
-FastShip demostro ser una solucion efectiva para automatizar deployments en un entorno de produccion real. La simplicidad del enfoque (webhook + docker compose) lo hace ideal para desarrolladores independientes y equipos pequenos que quieren CI/CD automatizado sin la complejidad de Kubernetes o plataformas managed.
+FastShip demostro ser una solucion efectiva para automatizar deployments en un entorno de produccion real. Con la adicion del build mode y rollback via image tagging, FastShip paso de ser un simple webhook que descarga imagenes a un orquestador de deployments completo.
 
 **Estadisticas clave:**
 - 4 servicios gestionados
+- 2 modos de deploy (pull + build)
 - ~76 segundos de deploy end-to-end
 - 0 deployments fallidos desde implementacion
 - 0 downtime no planificado
@@ -336,3 +466,4 @@ FastShip demostro ser una solucion efectiva para automatizar deployments en un e
 - [Repositorio FastShip](https://github.com/esteban-ams/fastship)
 - [Documentacion](./ARCHITECTURE.md)
 - [Quick Start](../QUICKSTART.md)
+- [Roadmap](../ROADMAP.md)

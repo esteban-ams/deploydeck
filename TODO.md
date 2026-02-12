@@ -18,6 +18,19 @@
 - [x] In-memory deployment tracking
 - [x] API endpoints (deploy, health, list deployments)
 
+## Phase 1.5: Core Extended (DONE - Feb 2026)
+- [x] Build mode: clone repo + docker compose build + deploy
+- [x] Pull mode: docker compose pull + deploy
+- [x] Webhook payload parsing (GitHub push, GitLab push)
+- [x] Branch filtering (deploy only on configured branch)
+- [x] Rollback via image tagging (real snapshots before deploy)
+- [x] Rollback cleanup (keep_images configurable)
+- [x] Deployment timeouts (configurable per service, default 5m/10m)
+- [x] Token security: clone_token_file (Docker Secrets pattern)
+- [x] Token injection for private repos (GitHub, GitLab, generic)
+- [x] Auto-prune build cache (prune_after_build option)
+- [x] New Docker commands: ComposeBuild, TagImage, RemoveImage, ListImagesByFilter, BuilderPrune
+
 ---
 
 ## Phase A: DX & Community Ready (PRIORITY #1)
@@ -46,7 +59,7 @@
 ### Documentation
 - [ ] README con GIF de demo
 - [ ] Badges (build, version, license)
-- [ ] Quickstart de 2 minutos
+- [ ] Quickstart de 2 minutos (pull mode y build mode)
 
 ### Release
 - [ ] Setup goreleaser
@@ -60,7 +73,7 @@
 
 ### SQLite
 - [ ] Usar `modernc.org/sqlite` (pure Go, sin CGO)
-- [ ] Schema: `deployments(id, service, image, status, started_at, finished_at, error)`
+- [ ] Schema: `deployments(id, service, mode, image, status, started_at, finished_at, rollback_tag, error)`
 - [ ] Schema: `images(id, service, tag, sha, pulled_at)`
 - [ ] Auto-create database si no existe
 
@@ -71,8 +84,8 @@
 - [ ] Cleanup: eliminar registros antiguos (configurable)
 
 ### Rollback Mejorado
-- [ ] Listar versiones disponibles para rollback
-- [ ] Rollback a version especifica (no solo la anterior)
+- [ ] Listar rollback tags disponibles por servicio
+- [ ] Rollback a version especifica (seleccionar tag)
 - [ ] API: `GET /api/services/:name/images`
 
 ### Tests
@@ -99,14 +112,14 @@
 - [ ] Logout
 
 ### Vistas
-- [ ] Dashboard overview (servicios + estado actual)
-- [ ] Lista de deployments (tabla paginada)
+- [ ] Dashboard overview (servicios + estado + modo pull/build)
+- [ ] Lista de deployments (tabla paginada con modo, rollback_tag)
 - [ ] Detalle de deployment (logs, duracion, etc)
 - [ ] Settings (ver/rotar token)
 
 ### Acciones
 - [ ] Boton deploy manual con confirmacion
-- [ ] Boton rollback con selector de version
+- [ ] Boton rollback con selector de rollback tags
 - [ ] HTMX para updates sin refresh
 
 ---
@@ -115,9 +128,10 @@
 > Confianza sin over-engineering.
 
 ### Unit Tests
-- [ ] `internal/config` - parsing, validation, defaults
-- [ ] `internal/webhook` - HMAC verification, secret auth
-- [ ] `internal/deploy` - health check logic, timeout handling
+- [ ] `internal/config` - parsing, validation, defaults, deploy modes
+- [ ] `internal/webhook` - HMAC verification, secret auth, payload parsing
+- [ ] `internal/deploy` - health check logic, timeout handling, rollback flow
+- [ ] `internal/docker` - tag, prune, build commands
 - [ ] `internal/store` - CRUD operations
 
 ### Integration
@@ -148,6 +162,7 @@
 - [ ] GitHub App (zero-config)
 - [ ] Multi-server support
 - [ ] Blue-green deployments
+- [ ] Deployment approvals
 
 ---
 
