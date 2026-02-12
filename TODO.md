@@ -1,6 +1,11 @@
 # FastShip TODO
 
-## Phase 1: Core (DONE ✅)
+> Ver [ROADMAP.md](./ROADMAP.md) para el plan completo y timeline.
+> Ver [docs/CASE_STUDY.md](./docs/CASE_STUDY.md) para el caso de exito en produccion.
+
+---
+
+## Phase 1: Core (DONE)
 - [x] Configuration parsing with YAML
 - [x] Environment variable overrides
 - [x] Webhook authentication (HMAC, simple secret, GitLab)
@@ -13,137 +18,153 @@
 - [x] In-memory deployment tracking
 - [x] API endpoints (deploy, health, list deployments)
 
-## Phase 2: Persistence (NEXT)
-- [ ] Add SQLite database
-- [ ] Create schema (deployments, images tables)
-- [ ] Implement store package
-- [ ] Persist deployment history
-- [ ] Track image versions
-- [ ] Enable rollback to specific versions
-- [ ] Migration system for schema updates
+---
 
-## Phase 3: Web Dashboard
-- [ ] Install templ for templates
-- [ ] Create layout.templ
-- [ ] Create dashboard.templ (overview)
-- [ ] Create deployments.templ (history)
-- [ ] Add basic authentication
-- [ ] Real-time updates with HTMX
-- [ ] Manual deploy/rollback buttons
-- [ ] Deployment logs view
+## Phase A: DX & Community Ready (PRIORITY #1)
+> Primera impresion importa. Hacer FastShip facil de instalar y usar.
 
-## Phase 4: Testing
-- [ ] Unit tests for config package
-- [ ] Unit tests for webhook package
-- [ ] Unit tests for deploy package
-- [ ] Integration tests for docker package
-- [ ] E2E tests for complete flows
-- [ ] Test coverage >80%
-- [ ] Benchmark tests for performance
+### Installer
+- [ ] `install.sh` script para curl | bash
+- [ ] Detectar OS y arquitectura automaticamente
+- [ ] Descargar binario correcto de GitHub Releases
+- [ ] Verificar checksum
 
-## Phase 5: Observability
-- [ ] Structured logging (zerolog or zap)
-- [ ] Log levels (debug, info, warn, error)
-- [ ] Deployment logs storage
+### CLI Improvements
+- [ ] Colores con lipgloss o similar
+- [ ] `fastship doctor` - verifica docker, config, permisos
+- [ ] `fastship status` - tabla bonita con estado de servicios
+- [ ] Mensajes de error humanos (no stack traces)
+- [ ] Flag `--json` para output parseable
+
+### GitHub Community
+- [ ] Issue templates (bug report, feature request)
+- [ ] PR template
+- [ ] CONTRIBUTING.md
+- [ ] CODE_OF_CONDUCT.md
+- [ ] CHANGELOG.md (o usar Release notes)
+
+### Documentation
+- [ ] README con GIF de demo
+- [ ] Badges (build, version, license)
+- [ ] Quickstart de 2 minutos
+
+### Release
+- [ ] Setup goreleaser
+- [ ] GitHub Actions para release automatico
+- [ ] Release v0.1.0
+
+---
+
+## Phase B: Persistencia Simple (PRIORITY #2)
+> Historial que sobrevive reinicios.
+
+### SQLite
+- [ ] Usar `modernc.org/sqlite` (pure Go, sin CGO)
+- [ ] Schema: `deployments(id, service, image, status, started_at, finished_at, error)`
+- [ ] Schema: `images(id, service, tag, sha, pulled_at)`
+- [ ] Auto-create database si no existe
+
+### Store Package
+- [ ] Interface: `Save()`, `List()`, `GetByService()`, `GetByID()`
+- [ ] Implementacion SQLite
+- [ ] Migrar codigo actual para usar store
+- [ ] Cleanup: eliminar registros antiguos (configurable)
+
+### Rollback Mejorado
+- [ ] Listar versiones disponibles para rollback
+- [ ] Rollback a version especifica (no solo la anterior)
+- [ ] API: `GET /api/services/:name/images`
+
+### Tests
+- [ ] Tests para store package
+
+---
+
+## Phase C: Dashboard (PRIORITY #3)
+> UI visual para gestionar deploys.
+
+### Setup
+- [ ] Instalar templ
+- [ ] Configurar air para live reload
+- [ ] Embed templates en binario
+
+### Layout
+- [ ] Base layout (header, nav, footer)
+- [ ] CSS con Tailwind o Pico
+- [ ] Responsive basico
+
+### Auth
+- [ ] Middleware auth con token
+- [ ] Login page simple
+- [ ] Logout
+
+### Vistas
+- [ ] Dashboard overview (servicios + estado actual)
+- [ ] Lista de deployments (tabla paginada)
+- [ ] Detalle de deployment (logs, duracion, etc)
+- [ ] Settings (ver/rotar token)
+
+### Acciones
+- [ ] Boton deploy manual con confirmacion
+- [ ] Boton rollback con selector de version
+- [ ] HTMX para updates sin refresh
+
+---
+
+## Phase D: Tests Criticos (PRIORITY #4)
+> Confianza sin over-engineering.
+
+### Unit Tests
+- [ ] `internal/config` - parsing, validation, defaults
+- [ ] `internal/webhook` - HMAC verification, secret auth
+- [ ] `internal/deploy` - health check logic, timeout handling
+- [ ] `internal/store` - CRUD operations
+
+### Integration
+- [ ] CI: run `go test` en GitHub Actions
+- [ ] Badge de coverage en README
+
+---
+
+## Future (Post v0.3.0)
+
+### Observability
+- [ ] Structured logging con zerolog
 - [ ] Prometheus metrics endpoint
-- [ ] Metrics: deployments_total, deployment_duration, etc.
-- [ ] Health check metrics
+- [ ] Metricas: deployments_total, deployment_duration_seconds
 
-## Phase 6: Notifications
-- [ ] Slack notifications
+### Notifications
+- [ ] Slack webhooks
 - [ ] Discord webhooks
-- [ ] Email notifications (SMTP)
-- [ ] Custom webhook notifications
-- [ ] Notification templates
-- [ ] Per-service notification config
+- [ ] Custom webhook (user-defined URL)
 
-## Phase 7: Security & Reliability
-- [ ] Rate limiting per IP/service
-- [ ] IP whitelisting
-- [ ] API key management (per-service keys)
-- [ ] Deployment queuing
-- [ ] Graceful shutdown
-- [ ] Deployment timeout limits
-- [ ] Retry failed deployments
+### Security
+- [ ] Rate limiting per IP
+- [ ] API keys per service
+- [ ] IP whitelist
 
-## Phase 8: Advanced Features
-- [ ] Deployment approvals (manual approve required)
-- [ ] Deployment scheduling (deploy at specific time)
+### Advanced
+- [ ] Preview deploys (branch -> URL temporal)
+- [ ] GitHub App (zero-config)
+- [ ] Multi-server support
 - [ ] Blue-green deployments
-- [ ] Canary deployments
-- [ ] Pre/post deployment hooks
-- [ ] Environment-specific configs
-- [ ] Multi-node support
 
-## Phase 9: Kubernetes Support
-- [ ] kubectl integration
-- [ ] Kubernetes deployment support
-- [ ] Helm chart deployments
-- [ ] K8s health checks
-- [ ] K8s rollback
-
-## Phase 10: Developer Experience
-- [ ] CLI tool for testing
-- [ ] Docker Compose plugin
-- [ ] GitHub Action
-- [ ] GitLab CI template
-- [ ] Terraform provider
-
-## Nice to Have
-- [ ] Auto-update from GitHub releases
-- [ ] Backup/restore configuration
-- [ ] Deployment statistics
-- [ ] Cost tracking integration
-- [ ] Deployment annotations
-- [ ] Custom deployment scripts
-- [ ] WebSocket for real-time updates
-- [ ] GraphQL API
-- [ ] gRPC API
-
-## Documentation
-- [ ] API reference (OpenAPI/Swagger)
-- [ ] Video tutorials
-- [ ] Blog posts
-- [ ] Comparison with alternatives
-- [ ] Security best practices guide
-- [ ] Troubleshooting guide
-
-## Community
-- [ ] Contributing guide
-- [ ] Code of conduct
-- [ ] Issue templates
-- [ ] PR templates
-- [ ] Roadmap
-- [ ] Changelog
-
-## Priority Order
-1. **Phase 2**: Persistence - Most important for production use
-2. **Phase 4**: Testing - Essential for reliability
-3. **Phase 3**: Dashboard - Nice UX improvement
-4. **Phase 5**: Observability - Important for debugging
-5. **Phase 6**: Notifications - User request driven
-6. **Phase 7**: Security - As needed based on usage
-7. **Phase 8+**: Advanced features - Future
-
-## Quick Wins (Low Effort, High Value)
-- [ ] Add rate limiting (1-2 hours)
-- [ ] Add API authentication for /api/deployments (30 min)
-- [ ] Add deployment timeout config (1 hour)
-- [ ] Add graceful shutdown (1 hour)
-- [ ] Improve error messages (2 hours)
-- [ ] Add deployment duration tracking (30 min)
+---
 
 ## Known Issues
-- No authentication on GET /api/deployments
-- Rollback endpoint is a stub
-- No deployment logs storage
-- No rate limiting
-- No graceful shutdown
-- Deployment history lost on restart
+- [ ] No authentication on GET /api/deployments (fix in Phase A)
+- [ ] Deployment history lost on restart (fix in Phase B)
+- [ ] No dashboard (fix in Phase C)
+- [ ] No rate limiting (defer to Future)
+- [ ] No graceful shutdown (add in Phase A)
 
-## Research Needed
-- Best approach for blue-green deployments
-- How to handle multi-container services
-- Options for distributed deployment coordination
-- Database migration strategies
-- Monitoring best practices
+---
+
+## Quick Wins
+Small tasks that can be done anytime:
+
+- [ ] Add deployment duration tracking (30 min)
+- [ ] Add graceful shutdown (1 hour)
+- [ ] Improve error messages (2 hours)
+- [ ] Add version command to CLI (15 min)
+- [ ] Add `--config` flag to specify config path (30 min)
