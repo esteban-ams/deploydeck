@@ -8,321 +8,200 @@ FastShip is built with simplicity and reliability in mind. It's a single Go bina
 
 1. Listens for HTTP webhooks
 2. Verifies the request authenticity
-3. Executes Docker Compose commands
-4. Monitors deployment health
-5. Optionally rolls back on failure
+3. Parses webhook payload (build mode) or deploy request (pull mode)
+4. Executes Git clone (build mode) and Docker Compose commands
+5. Monitors deployment health
+6. Rolls back on failure via image tagging
 
 ## Component Diagram
 
 ```
-                                    ┌─────────────────────────────────────┐
-                                    │            FastShip                 │
-                                    │                                     │
-┌──────────────┐                    │  ┌─────────────┐  ┌─────────────┐  │
-│   CI/CD      │  POST /api/deploy  │  │   Webhook   │  │   Deploy    │  │
-│  (GitHub,    │───────────────────►│  │   Handler   │─►│   Engine    │  │
-│   GitLab)    │                    │  └─────────────┘  └──────┬──────┘  │
-└──────────────┘                    │         │                │         │
-                                    │         ▼                ▼         │
-                                    │  ┌─────────────┐  ┌─────────────┐  │
-                                    │  │    Auth     │  │   Docker    │  │
-                                    │  │  Verifier   │  │   Client    │  │
-                                    │  └─────────────┘  └──────┬──────┘  │
-                                    │                          │         │
-┌──────────────┐                    │  ┌─────────────┐         │         │
-│   Browser    │  GET /dashboard    │  │    Web      │         │         │
-│              │◄──────────────────►│  │  Dashboard  │         │         │
-└──────────────┘                    │  └─────────────┘         │         │
-                                    │         │                │         │
-                                    │         ▼                ▼         │
-                                    │  ┌─────────────────────────────┐   │
-                                    │  │         Store (SQLite)      │   │
-                                    │  │   - Deployment history      │   │
-                                    │  │   - Image versions          │   │
-                                    │  └─────────────────────────────┘   │
-                                    └─────────────────────────────────────┘
-                                                       │
-                                                       │ Docker Socket
-                                                       ▼
-                                    ┌─────────────────────────────────────┐
-                                    │           Docker Engine             │
-                                    │  ┌─────────┐ ┌─────────┐ ┌───────┐ │
-                                    │  │Container│ │Container│ │  ...  │ │
-                                    │  └─────────┘ └─────────┘ └───────┘ │
-                                    └─────────────────────────────────────┘
+                                    +-------------------------------------+
+                                    |            FastShip                  |
+                                    |                                     |
++------------------+                |  +-----------+    +-----------+     |
+|   CI/CD          |  POST /deploy  |  |  Webhook  |    |  Deploy   |     |
+|  (GitHub,        |--------------->|  |  Handler  |--->|  Engine   |     |
+|   GitLab)        |                |  +-----------+    +-----+-----+     |
++------------------+                |       |                 |           |
+                                    |       v                 v           |
+                                    |  +-----------+    +-----------+     |
+                                    |  |   Auth    |    |  Docker   |     |
+                                    |  | Verifier  |    |  Client   |     |
+                                    |  +-----------+    +-----------+     |
+                                    |       |                 |           |
+                                    |       v                 v           |
+                                    |  +-----------+    +-----------+     |
+                                    |  | Payload   |    |   Git     |     |
+                                    |  |  Parser   |    |  Client   |     |
+                                    |  +-----------+    +-----------+     |
+                                    +-------------------------------------+
+                                                          |
+                                                          | Docker Socket
+                                                          v
+                                    +-------------------------------------+
+                                    |           Docker Engine              |
+                                    |  +---------+ +---------+ +-------+  |
+                                    |  |Container| |Container| |  ...  |  |
+                                    |  +---------+ +---------+ +-------+  |
+                                    +-------------------------------------+
 ```
 
 ## Core Components
 
-### 1. Webhook Handler (`internal/webhook/`)
+### 1. Webhook Handler (`internal/webhook/handler.go`)
 
 Responsible for:
 - Parsing incoming HTTP requests
 - Extracting service name from URL path
-- Passing to auth verifier
-- Returning appropriate responses
+- Routing to auth verifier
+- Branching by deploy mode (pull vs build)
+- Returning JSON responses
 
-```go
-// Handler interface
-type Handler interface {
-    HandleDeploy(w http.ResponseWriter, r *http.Request)
-    HandleRollback(w http.ResponseWriter, r *http.Request)
-    HandleHealth(w http.ResponseWriter, r *http.Request)
-}
-```
+Endpoints:
+- `POST /api/deploy/:service` — Trigger deployment
+- `POST /api/rollback/:service` — Manual rollback (stub)
+- `GET /api/deployments` — List deployments
+- `GET /api/health` — Health check with uptime
 
 ### 2. Auth Verifier (`internal/webhook/verify.go`)
 
-Implements HMAC-SHA256 verification compatible with GitHub webhooks:
+Implements webhook authentication with three methods:
 
-```go
-// Verification flow
-func VerifySignature(secret string, body []byte, signature string) bool {
-    mac := hmac.New(sha256.New, []byte(secret))
-    mac.Write(body)
-    expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
-    return hmac.Equal([]byte(expected), []byte(signature))
-}
-```
+| Method | Header | Verification |
+|--------|--------|-------------|
+| GitHub | `X-Hub-Signature-256` | HMAC-SHA256 |
+| GitLab | `X-GitLab-Token` | Token comparison |
+| FastShip | `X-FastShip-Secret` | HMAC or token |
 
-Supports multiple auth methods:
-- `X-Hub-Signature-256`: GitHub-style HMAC
-- `X-FastShip-Secret`: Simple shared secret
-- `X-GitLab-Token`: GitLab webhook token
+All comparisons use `hmac.Equal()` for constant-time comparison (prevents timing attacks).
 
-### 3. Deploy Engine (`internal/deploy/`)
+Returns `AuthMethod` to identify the provider for payload parsing.
 
-Orchestrates the deployment process:
+### 3. Payload Parser (`internal/webhook/payload.go`)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Deployment Flow                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  1. Receive deploy request                                  │
-│           │                                                 │
-│           ▼                                                 │
-│  2. Save current image (for rollback)                       │
-│           │                                                 │
-│           ▼                                                 │
-│  3. docker compose pull <service>                           │
-│           │                                                 │
-│           ▼                                                 │
-│  4. docker compose up -d <service>                          │
-│           │                                                 │
-│           ▼                                                 │
-│  5. Health check loop (with timeout)                        │
-│           │                                                 │
-│      ┌────┴────┐                                            │
-│      ▼         ▼                                            │
-│  SUCCESS    FAILURE                                         │
-│      │         │                                            │
-│      │         ▼                                            │
-│      │    6. Rollback to previous image                     │
-│      │         │                                            │
-│      ▼         ▼                                            │
-│  7. Record deployment in store                              │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+Parses push event payloads from GitHub and GitLab webhooks:
 
-### 4. Docker Client (`internal/docker/`)
+- **GitHub**: Extracts `repository.clone_url`, `ref`, `after` (commit SHA)
+- **GitLab**: Extracts `project.http_url`, `ref`, `after`
+- **Branch extraction**: Converts `refs/heads/main` to `main`
 
-Wraps Docker and Docker Compose operations:
+Used in build mode to determine what to clone and which branch to build.
 
-```go
-type Client interface {
-    // Pull a specific image
-    Pull(ctx context.Context, image string) error
+### 4. Deploy Engine (`internal/deploy/deploy.go`)
 
-    // Execute docker compose commands
-    ComposeUp(ctx context.Context, opts ComposeOptions) error
-    ComposePull(ctx context.Context, opts ComposeOptions) error
-
-    // Get current image for a container
-    GetCurrentImage(ctx context.Context, container string) (string, error)
-
-    // Health check
-    IsHealthy(ctx context.Context, container string) (bool, error)
-}
-
-type ComposeOptions struct {
-    ComposeFile string
-    Service     string
-    WorkingDir  string
-    Env         map[string]string
-}
-```
-
-Implementation uses `os/exec` to call `docker` and `docker compose` commands directly, rather than the Docker SDK, for simplicity and compatibility.
-
-### 5. Store (`internal/store/`)
-
-SQLite-based storage for deployment history:
-
-```sql
--- Schema
-CREATE TABLE deployments (
-    id TEXT PRIMARY KEY,
-    service TEXT NOT NULL,
-    status TEXT NOT NULL,  -- pending, running, success, failed, rolled_back
-    image TEXT,
-    previous_image TEXT,
-    started_at TIMESTAMP NOT NULL,
-    completed_at TIMESTAMP,
-    error_message TEXT,
-    triggered_by TEXT      -- github, gitlab, manual, api
-);
-
-CREATE TABLE images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    service TEXT NOT NULL,
-    image TEXT NOT NULL,
-    deployed_at TIMESTAMP NOT NULL
-);
-
-CREATE INDEX idx_deployments_service ON deployments(service);
-CREATE INDEX idx_deployments_started_at ON deployments(started_at DESC);
-```
-
-### 6. Web Dashboard (`web/`)
-
-Built with:
-- **templ**: Type-safe HTML templates
-- **HTMX**: Dynamic updates without JavaScript
-- **Echo**: HTTP router
-
-Features:
-- Real-time deployment status
-- Deployment history
-- Manual deploy/rollback buttons
-- Service overview
-
-## Request Flow
-
-### Deploy Request
+Orchestrates the 7-step deployment pipeline:
 
 ```
-1. HTTP POST /api/deploy/myapp
-   Headers: X-FastShip-Secret: <secret>
-   Body: {"image": "ghcr.io/user/app:latest"}
-
-2. webhook.Handler.HandleDeploy()
-   - Extract service name from path
-   - Read and validate body
-
-3. webhook.Verify()
-   - Check signature/secret
-   - Return 401 if invalid
-
-4. deploy.Engine.Deploy()
-   - Create deployment record (status: pending)
-   - Get current image (for rollback)
-   - Update status: running
-
-5. docker.Client.ComposePull()
-   - Execute: docker compose -f <file> pull <service>
-
-6. docker.Client.ComposeUp()
-   - Execute: docker compose -f <file> up -d <service>
-
-7. deploy.HealthChecker.Wait()
-   - Poll health endpoint until healthy or timeout
-
-8. On success:
-   - Update deployment status: success
-   - Return 200 OK
-
-9. On failure:
-   - Execute rollback
-   - Update deployment status: failed
-   - Return 500 with error
+Step 1: Save current image + tag rollback snapshot
+Step 2: Clone repo (build) or pull image (pull)
+Step 3: Build image (build mode only)
+Step 4: docker compose up -d
+Step 5: Health check polling
+Step 6: Mark success / handle failure + rollback
+Step 7: Cleanup old rollback tags
+Step 8: Auto-prune build cache (build mode, optional)
 ```
 
-## Configuration Loading
+**Deployment States**: `pending` -> `running` -> `success` | `failed` | `rolled_back`
 
-```go
-type Config struct {
-    Server    ServerConfig             `yaml:"server"`
-    Auth      AuthConfig               `yaml:"auth"`
-    Dashboard DashboardConfig          `yaml:"dashboard"`
-    Logging   LoggingConfig            `yaml:"logging"`
-    Services  map[string]ServiceConfig `yaml:"services"`
-}
+**Rollback mechanism**: Before each deploy, the current image is tagged as `service:rollback-<timestamp>`. On failure, the tag is restored and `docker compose up -d` brings back the previous version.
 
-// Loading priority:
-// 1. CLI flags (--port, --config)
-// 2. Environment variables (FASTSHIP_*)
-// 3. Config file (config.yaml)
-// 4. Defaults
-```
+**Timeouts**: Each deployment gets a `context.WithTimeout` (default 5m pull, 10m build). Rollback gets its own 2-minute timeout.
 
-## Error Handling
+### 5. Health Checker (`internal/deploy/health.go`)
 
-FastShip uses structured errors with context:
+Polls an HTTP endpoint until it returns 2xx or times out:
+- Configurable timeout, interval, and retry count
+- Context-aware cancellation
+- Non-blocking checks
 
-```go
-type DeployError struct {
-    Service   string
-    Phase     string // pull, up, health_check, rollback
-    Cause     error
-    Timestamp time.Time
-}
+### 6. Docker Client (`internal/docker/docker.go`)
 
-func (e *DeployError) Error() string {
-    return fmt.Sprintf("deploy %s failed at %s: %v",
-        e.Service, e.Phase, e.Cause)
-}
-```
+Wraps Docker CLI via `os/exec` (not Docker SDK):
+
+| Method | Command |
+|--------|---------|
+| `ComposePull` | `docker compose pull <service>` |
+| `ComposeBuild` | `docker compose build <service>` |
+| `ComposeUp` | `docker compose up -d <service>` |
+| `GetCurrentImage` | `docker inspect -f {{.Config.Image}}` |
+| `GetContainerName` | `docker compose ps -q` + `docker inspect` |
+| `TagImage` | `docker tag <source> <target>` |
+| `RemoveImage` | `docker rmi <image>` |
+| `ListImagesByFilter` | `docker images --filter reference=<pattern>` |
+| `BuilderPrune` | `docker builder prune -f` |
+
+Why `os/exec` instead of Docker SDK: simpler code, no version compatibility issues, works with any Docker version, easy to debug.
+
+### 7. Git Client (`internal/git/git.go`)
+
+Handles repository cloning for build mode:
+
+- Shallow clone (`--depth 1`) for speed
+- Automatic token injection per provider:
+  - GitHub: `x-access-token:<token>`
+  - GitLab: `oauth2:<token>`
+  - Other: `token:<token>`
+- Clean clone (removes existing directory first)
 
 ## Concurrency Model
 
 - Each deployment runs in its own goroutine
-- Deployments for the same service are serialized (mutex per service)
-- Different services can deploy concurrently
-- Store access is serialized via SQLite's built-in locking
+- Deployments for the same service are serialized (per-service mutex)
+- Different services deploy concurrently
+- In-memory state protected by global mutex
 
 ```go
 type Engine struct {
-    mu       sync.Mutex
-    services map[string]*sync.Mutex  // Per-service locks
-    // ...
-}
-
-func (e *Engine) Deploy(ctx context.Context, service string, opts DeployOptions) {
-    // Get or create service lock
-    e.mu.Lock()
-    svcMu, ok := e.services[service]
-    if !ok {
-        svcMu = &sync.Mutex{}
-        e.services[service] = svcMu
-    }
-    e.mu.Unlock()
-
-    // Lock this service
-    svcMu.Lock()
-    defer svcMu.Unlock()
-
-    // ... deployment logic
+    mu            sync.Mutex
+    serviceLocks  map[string]*sync.Mutex  // Per-service locks
+    deployments   map[string]*Deployment  // In-memory state
+    dockerClient  *docker.Client
+    gitClient     *git.Client
+    healthChecker *HealthChecker
+    config        *config.Config
 }
 ```
+
+## Configuration Loading
+
+```
+1. CLI flags (--port, --config)
+   |
+   v (overrides)
+2. Environment variables (FASTSHIP_*)
+   |
+   v (overrides)
+3. Config file (config.yaml)
+   |
+   v (overrides)
+4. Default values
+```
+
+Token resolution priority: `clone_token` (YAML) > `clone_token_file` > `FASTSHIP_CLONE_TOKEN` (env)
 
 ## Testing Strategy
 
 ### Unit Tests
-- Config parsing
-- Auth verification
-- Deployment state machine
+- Config parsing, validation, defaults
+- Auth verification (all 3 methods)
+- Payload parsing (GitHub, GitLab)
+- Health check polling
 
 ### Integration Tests
 - Docker client operations (requires Docker)
-- Full deploy flow with mock containers
+- Full deploy flow with test containers
 
 ### E2E Tests
 - Complete webhook -> deploy flow
-- Dashboard interactions
 
 ## Future Considerations
+
+### Planned
+- SQLite persistence for deployment history
+- Web dashboard (Templ + HTMX)
+- Structured logging
 
 ### Potential Enhancements
 - Kubernetes support

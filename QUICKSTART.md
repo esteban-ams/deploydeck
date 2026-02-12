@@ -56,7 +56,7 @@ services:
 # Test health endpoint
 curl http://localhost:9000/api/health
 
-# Trigger a deployment
+# Trigger a deployment (pull mode)
 curl -X POST http://localhost:9000/api/deploy/myapp \
   -H "X-FastShip-Secret: my-super-secret-key" \
   -H "Content-Type: application/json" \
@@ -93,7 +93,6 @@ docker compose logs -f
 ### 1. Download Binary
 
 ```bash
-# Download latest release
 curl -L https://github.com/esteban-ams/fastship/releases/latest/download/fastship-linux-amd64 -o /usr/local/bin/fastship
 chmod +x /usr/local/bin/fastship
 ```
@@ -123,7 +122,60 @@ systemctl status fastship
 journalctl -u fastship -f
 ```
 
-## Configure Your CI/CD
+## Build Mode Setup
+
+Build mode clones your repo and builds images directly on the server. No registry needed.
+
+### 1. Configure a Build Mode Service
+
+```yaml
+services:
+  myapp:
+    mode: "build"
+    branch: "main"
+    repo: "https://github.com/user/myapp.git"
+    compose_file: "docker-compose.yml"         # relative to repo root
+    service_name: "myapp"
+    working_dir: "/opt/builds/myapp"
+    timeout: 15m
+    prune_after_build: true
+    health_check:
+      enabled: true
+      url: "http://localhost:8080/health"
+    rollback:
+      enabled: true
+```
+
+### 2. For Private Repos
+
+Use a token file (Docker Secrets pattern):
+
+```yaml
+services:
+  myapp:
+    mode: "build"
+    clone_token_file: "/run/secrets/github_token"
+    # ...
+```
+
+Or set the environment variable:
+
+```bash
+export FASTSHIP_CLONE_TOKEN=ghp_your_github_token
+```
+
+### 3. Set Up GitHub Webhook
+
+In your GitHub repo: **Settings > Webhooks > Add webhook**
+
+- **Payload URL**: `https://deploy.yourdomain.com/api/deploy/myapp`
+- **Content type**: `application/json`
+- **Secret**: Your `webhook_secret`
+- **Events**: Just the push event
+
+Now every push to `main` triggers a build and deploy automatically.
+
+## Configure Your CI/CD (Pull Mode)
 
 ### GitHub Actions
 
@@ -161,8 +213,6 @@ deploy:
 openssl rand -hex 32
 ```
 
-Add this to your config.yaml and CI/CD secrets.
-
 ### 2. Use HTTPS in Production
 
 Either:
@@ -170,8 +220,6 @@ Either:
 - Put FastShip behind a reverse proxy (Traefik, nginx)
 
 ### 3. Restrict Access
-
-Configure your firewall to only allow connections from your CI/CD IPs:
 
 ```bash
 # Example with ufw
@@ -182,18 +230,24 @@ ufw allow from CI_IP_ADDRESS to any port 9000
 
 ### "service not found"
 
-Check your config.yaml - the service name in the URL must match a key in the `services:` section.
+Check your config.yaml — the service name in the URL must match a key in the `services:` section.
 
 ### "authentication failed"
 
-- Verify the secret in config.yaml matches the header value
+- Verify the secret matches the header value
 - Check for typos in the header name (`X-FastShip-Secret`)
 
 ### "deployment failed at pull phase"
 
 - Verify the compose_file path is correct
 - Ensure the service_name matches your docker-compose.yml
-- Check Docker has access to pull the image (login if private registry)
+- Check Docker has access to pull the image
+
+### "deployment failed at clone phase"
+
+- Verify the repo URL is correct
+- For private repos, check your clone token is valid
+- Ensure git is installed on the server
 
 ### "health check timeout"
 
@@ -204,10 +258,5 @@ Check your config.yaml - the service name in the URL must match a key in the `se
 ## Next Steps
 
 - Read the full [README.md](README.md) for detailed documentation
-- Check [ARCHITECTURE.md](docs/ARCHITECTURE.md) to understand internals
-- See [BUILD.md](BUILD.md) for development setup
-
-## Getting Help
-
-- GitHub Issues: https://github.com/esteban-ams/fastship/issues
-- Documentation: https://github.com/esteban-ams/fastship/docs
+- Check [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) to understand internals
+- See [ROADMAP.md](ROADMAP.md) for the development roadmap
