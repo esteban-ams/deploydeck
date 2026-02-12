@@ -215,7 +215,7 @@ Manual rollback endpoint (stub — will be fully implemented with persistent sto
 ### GET /api/health
 
 ```json
-{"status": "healthy", "version": "1.0.0", "uptime": "48h30m"}
+{"status": "healthy", "version": "0.1.0", "uptime": "48h30m"}
 ```
 
 ## Configuration Reference

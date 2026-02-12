@@ -33,9 +33,6 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /build/fastship .
 
-# Create config directory
-RUN mkdir -p /app/config
-
 # Expose port
 EXPOSE 9000
 
@@ -44,4 +41,4 @@ EXPOSE 9000
 USER root
 
 ENTRYPOINT ["/app/fastship"]
-CMD ["--config", "/app/config/config.yaml"]
+CMD ["--config", "/app/config.yaml"]

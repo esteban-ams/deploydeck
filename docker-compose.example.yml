@@ -1,8 +1,6 @@
 # Example docker-compose.yml for testing FastShip
 # This represents a service that FastShip would deploy
 
-version: '3.8'
-
 services:
   myapp:
     image: nginx:latest
