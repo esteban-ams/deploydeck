@@ -15,7 +15,8 @@ COPY . .
 RUN go mod tidy
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o fastship ./cmd/fastship
+ARG VERSION=dev
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-X main.version=${VERSION}" -o fastship ./cmd/fastship
 
 # Runtime stage
 FROM alpine:latest

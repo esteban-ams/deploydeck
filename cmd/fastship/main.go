@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/esteban-ams/fastship/internal/config"
 	"github.com/esteban-ams/fastship/internal/deploy"
@@ -14,7 +19,7 @@ import (
 )
 
 var (
-	version = "1.0.0"
+	version = "dev"
 )
 
 func main() {
@@ -25,7 +30,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("FastShip v%s\n", version)
+		fmt.Printf("FastShip %s\n", version)
 		os.Exit(0)
 	}
 
@@ -40,7 +45,7 @@ func main() {
 		cfg.Server.Port = *port
 	}
 
-	log.Printf("FastShip v%s starting...", version)
+	log.Printf("FastShip %s starting...", version)
 	log.Printf("Configuration loaded from: %s", *configPath)
 	log.Printf("Configured services: %d", len(cfg.Services))
 	for name := range cfg.Services {
@@ -51,7 +56,7 @@ func main() {
 	engine := deploy.NewEngine(cfg)
 
 	// Initialize webhook handler
-	handler := webhook.NewHandler(cfg, engine)
+	handler := webhook.NewHandler(cfg, engine, version)
 
 	// Setup Echo server
 	e := echo.New()
@@ -70,18 +75,35 @@ func main() {
 	api.GET("/deployments", handler.HandleListDeployments)
 	api.GET("/health", handler.HandleHealth)
 
-	// Start server
+	// Start server in goroutine
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Server listening on %s", addr)
 	log.Printf("Webhook endpoint: http://%s/api/deploy/:service", addr)
 
-	if cfg.Server.TLS.Enabled {
-		if err := e.StartTLS(addr, cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+	go func() {
+		var startErr error
+		if cfg.Server.TLS.Enabled {
+			startErr = e.StartTLS(addr, cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile)
+		} else {
+			startErr = e.Start(addr)
 		}
-	} else {
-		if err := e.Start(addr); err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+		if startErr != nil && startErr != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", startErr)
 		}
+	}()
+
+	// Wait for interrupt signal for graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	log.Printf("Received signal %s, shutting down...", sig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
 	}
+
+	log.Println("Server stopped gracefully")
 }

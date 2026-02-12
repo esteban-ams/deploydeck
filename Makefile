@@ -1,12 +1,15 @@
-.PHONY: build run test clean install deps
+.PHONY: build build-linux run test clean install deps
+
+VERSION ?= dev
+LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
 # Build the binary
 build:
-	go build -o fastship ./cmd/fastship
+	go build $(LDFLAGS) -o fastship ./cmd/fastship
 
 # Build for Linux (useful for deployment from macOS)
 build-linux:
-	GOOS=linux GOARCH=amd64 go build -o fastship-linux-amd64 ./cmd/fastship
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o fastship-linux-amd64 ./cmd/fastship
 
 # Run the application
 run:
@@ -27,4 +30,4 @@ deps:
 
 # Install the binary to GOPATH/bin
 install:
-	go install ./cmd/fastship
+	go install $(LDFLAGS) ./cmd/fastship

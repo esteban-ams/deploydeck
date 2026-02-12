@@ -15,18 +15,20 @@ import (
 
 // Handler handles webhook HTTP requests
 type Handler struct {
-	verifier *Verifier
-	engine   *deploy.Engine
-	config   *config.Config
+	verifier  *Verifier
+	engine    *deploy.Engine
+	config    *config.Config
+	version   string
 	startTime time.Time
 }
 
 // NewHandler creates a new webhook handler
-func NewHandler(cfg *config.Config, engine *deploy.Engine) *Handler {
+func NewHandler(cfg *config.Config, engine *deploy.Engine, version string) *Handler {
 	return &Handler{
 		verifier:  NewVerifier(cfg.Auth.WebhookSecret),
 		engine:    engine,
 		config:    cfg,
+		version:   version,
 		startTime: time.Now(),
 	}
 }
@@ -254,7 +256,7 @@ func (h *Handler) HandleHealth(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, HealthResponse{
 		Status:  "healthy",
-		Version: "1.0.0",
+		Version: h.version,
 		Uptime:  uptime.String(),
 	})
 }
