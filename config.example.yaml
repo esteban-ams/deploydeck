@@ -23,18 +23,21 @@ logging:
   format: "text"  # json or text
 
 services:
-  # Example service configuration
+  # Example service — pull mode (default)
+  # Pulls pre-built images from a registry, then deploys
   myapp:
-    # Path to docker-compose.yml
     compose_file: "/opt/apps/docker-compose.yml"
-
-    # Service name in docker-compose.yml
     service_name: "myapp"
-
-    # Working directory for docker compose commands
     working_dir: "/opt/apps"
 
-    # Health check configuration
+    # Deploy mode: "pull" (default) or "build"
+    # pull:  docker compose pull + docker compose up -d
+    # build: git clone + docker compose build + docker compose up -d
+    # mode: "pull"
+
+    # Deployment timeout (default: 5m for pull, 10m for build)
+    # timeout: 5m
+
     health_check:
       enabled: true
       url: "http://localhost:8080/health"
@@ -42,21 +45,33 @@ services:
       interval: 2s
       retries: 10
 
-    # Rollback configuration
+    # Rollback: tags current image before deploy, restores on failure
     rollback:
       enabled: true
-      keep_images: 3
+      keep_images: 3    # number of rollback image tags to keep
 
-    # Environment variables for deployment
     env:
       DEPLOY_ENV: "production"
 
-  # Add more services as needed
-  # another-service:
-  #   compose_file: "/opt/another/docker-compose.yml"
-  #   service_name: "web"
-  #   working_dir: "/opt/another"
+  # Example service — build mode
+  # Clones the repo from GitHub/GitLab webhook payload, builds, and deploys
+  # myapp-build:
+  #   compose_file: "docker-compose.yml"          # relative to repo root
+  #   service_name: "myapp"
+  #   working_dir: "/opt/fastship/builds/myapp"   # where repo is cloned
+  #   mode: "build"
+  #   branch: "main"                              # only deploy pushes to this branch
+  #   repo: "https://github.com/user/repo.git"    # fallback URL for manual triggers
+  #   clone_token: ""                              # for private repos (or use FASTSHIP_CLONE_TOKEN env var)
+  #   clone_token_file: "/run/secrets/clone_token" # alternative: read token from file (Docker secrets)
+  #   timeout: 10m                                 # deployment timeout (default: 10m for build mode)
+  #   prune_after_build: true                      # clean Docker build cache after successful deploy
   #   health_check:
-  #     enabled: false
+  #     enabled: true
+  #     url: "http://localhost:8081/health"
+  #     timeout: 60s                               # builds may take longer
+  #     interval: 5s
+  #     retries: 12
   #   rollback:
-  #     enabled: false
+  #     enabled: true                              # now works in build mode via image tagging
+  #     keep_images: 3                             # keep last 3 rollback snapshots

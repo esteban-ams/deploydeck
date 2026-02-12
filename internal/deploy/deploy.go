@@ -9,6 +9,7 @@ import (
 
 	"github.com/esteban-ams/fastship/internal/config"
 	"github.com/esteban-ams/fastship/internal/docker"
+	"github.com/esteban-ams/fastship/internal/git"
 )
 
 // Status represents the deployment status
@@ -27,8 +28,10 @@ type Deployment struct {
 	ID            string
 	Service       string
 	Status        Status
+	Mode          string
 	Image         string
 	PreviousImage string
+	RollbackTag   string
 	StartedAt     time.Time
 	CompletedAt   *time.Time
 	ErrorMessage  string
@@ -40,6 +43,7 @@ type Engine struct {
 	serviceLocks  map[string]*sync.Mutex
 	deployments   map[string]*Deployment
 	dockerClient  *docker.Client
+	gitClient     *git.Client
 	healthChecker *HealthChecker
 	config        *config.Config
 }
@@ -50,6 +54,7 @@ func NewEngine(cfg *config.Config) *Engine {
 		serviceLocks:  make(map[string]*sync.Mutex),
 		deployments:   make(map[string]*Deployment),
 		dockerClient:  docker.NewClient(),
+		gitClient:     git.NewClient(),
 		healthChecker: NewHealthChecker(),
 		config:        cfg,
 	}
@@ -57,8 +62,11 @@ func NewEngine(cfg *config.Config) *Engine {
 
 // DeployOptions holds deployment options
 type DeployOptions struct {
-	Image string
-	Tag   string
+	Image    string
+	Tag      string
+	CloneURL string // for build mode: repo clone URL
+	Branch   string // for build mode: branch name
+	Commit   string // for build mode: commit SHA
 }
 
 // Deploy initiates a deployment for a service
@@ -78,6 +86,7 @@ func (e *Engine) Deploy(ctx context.Context, serviceName string, opts DeployOpti
 		ID:        generateDeploymentID(),
 		Service:   serviceName,
 		Status:    StatusPending,
+		Mode:      string(svcCfg.Mode),
 		Image:     opts.Image,
 		StartedAt: time.Now(),
 	}
@@ -92,22 +101,25 @@ func (e *Engine) Deploy(ctx context.Context, serviceName string, opts DeployOpti
 		svcLock.Lock()
 		defer svcLock.Unlock()
 
-		e.executeDeploy(context.Background(), deployment, svcCfg)
+		// Create a timeout context for the entire deployment operation
+		ctx, cancel := context.WithTimeout(context.Background(), svcCfg.Timeout)
+		defer cancel()
+
+		e.executeDeploy(ctx, deployment, svcCfg, opts)
 	}()
 
 	return deployment, nil
 }
 
 // executeDeploy performs the actual deployment
-func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcCfg config.ServiceConfig) {
+func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcCfg config.ServiceConfig, opts DeployOptions) {
 	// Update status to running
 	e.updateDeployment(deployment.ID, func(d *Deployment) {
 		d.Status = StatusRunning
 	})
 
-	log.Printf("Starting deployment %s for service %s", deployment.ID, deployment.Service)
+	log.Printf("Starting deployment %s for service %s (mode: %s)", deployment.ID, deployment.Service, svcCfg.Mode)
 
-	// Step 1: Get current image for rollback
 	dockerOpts := docker.ComposeOptions{
 		ComposeFile: svcCfg.ComposeFile,
 		Service:     svcCfg.ServiceName,
@@ -115,34 +127,71 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 		Env:         svcCfg.Env,
 	}
 
-	containerName, err := e.dockerClient.GetContainerName(ctx, dockerOpts)
-	if err != nil {
-		log.Printf("Warning: could not get container name for %s: %v", deployment.Service, err)
-	} else {
-		currentImage, err := e.dockerClient.GetCurrentImage(ctx, containerName)
+	// Step 1: Save current image and create rollback tag
+	if svcCfg.Rollback.Enabled {
+		containerName, err := e.dockerClient.GetContainerName(ctx, dockerOpts)
 		if err != nil {
-			log.Printf("Warning: could not get current image for %s: %v", deployment.Service, err)
+			log.Printf("Warning: could not get container name for %s: %v", deployment.Service, err)
 		} else {
-			deployment.PreviousImage = currentImage
-			log.Printf("Saved current image for rollback: %s", currentImage)
+			currentImage, err := e.dockerClient.GetCurrentImage(ctx, containerName)
+			if err != nil {
+				log.Printf("Warning: could not get current image for %s: %v", deployment.Service, err)
+			} else {
+				deployment.PreviousImage = currentImage
+				log.Printf("Saved current image for rollback: %s", currentImage)
+
+				// Tag current image as rollback snapshot
+				rollbackTag := fmt.Sprintf("%s:rollback-%d", deployment.Service, time.Now().Unix())
+				if err := e.dockerClient.TagImage(ctx, currentImage, rollbackTag); err != nil {
+					log.Printf("Warning: could not tag rollback image for %s: %v", deployment.Service, err)
+				} else {
+					deployment.RollbackTag = rollbackTag
+					log.Printf("Tagged rollback image: %s -> %s", currentImage, rollbackTag)
+				}
+			}
 		}
 	}
 
-	// Step 2: Pull new image
-	log.Printf("Pulling image for service %s", deployment.Service)
-	if err := e.dockerClient.ComposePull(ctx, dockerOpts); err != nil {
-		e.handleDeploymentFailure(deployment, "pull", err, svcCfg)
-		return
+	// Step 2: Mode-specific operations
+	switch svcCfg.Mode {
+	case config.DeployModeBuild:
+		// Clone repository
+		log.Printf("Cloning repository for service %s (branch: %s)", deployment.Service, opts.Branch)
+		cloneOpts := git.CloneOptions{
+			URL:        opts.CloneURL,
+			Branch:     opts.Branch,
+			WorkingDir: svcCfg.WorkingDir,
+			Token:      svcCfg.CloneToken,
+		}
+		if err := e.gitClient.Clone(ctx, cloneOpts); err != nil {
+			e.handleDeploymentFailure(deployment, "clone", err, svcCfg)
+			return
+		}
+
+		// Build image
+		log.Printf("Building image for service %s", deployment.Service)
+		if err := e.dockerClient.ComposeBuild(ctx, dockerOpts); err != nil {
+			e.handleDeploymentFailure(deployment, "build", err, svcCfg)
+			return
+		}
+
+	default:
+		// Pull mode (default)
+		log.Printf("Pulling image for service %s", deployment.Service)
+		if err := e.dockerClient.ComposePull(ctx, dockerOpts); err != nil {
+			e.handleDeploymentFailure(deployment, "pull", err, svcCfg)
+			return
+		}
 	}
 
-	// Step 3: Deploy (docker compose up -d)
+	// Step 3: Deploy (docker compose up -d) — same for both modes
 	log.Printf("Deploying service %s", deployment.Service)
 	if err := e.dockerClient.ComposeUp(ctx, dockerOpts); err != nil {
 		e.handleDeploymentFailure(deployment, "up", err, svcCfg)
 		return
 	}
 
-	// Step 4: Health check
+	// Step 4: Health check — same for both modes
 	if svcCfg.HealthCheck.Enabled {
 		log.Printf("Running health check for service %s", deployment.Service)
 		if err := e.healthChecker.Wait(ctx, svcCfg.HealthCheck); err != nil {
@@ -160,6 +209,21 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 	})
 
 	log.Printf("Deployment %s completed successfully", deployment.ID)
+
+	// Step 6: Clean up old rollback tags
+	if svcCfg.Rollback.Enabled && svcCfg.Rollback.KeepImages > 0 {
+		e.cleanupOldRollbackTags(ctx, deployment.Service, svcCfg.Rollback.KeepImages)
+	}
+
+	// Step 7: Auto-prune build cache if enabled (build mode only, non-blocking)
+	if svcCfg.Mode == config.DeployModeBuild && svcCfg.PruneAfterBuild {
+		log.Printf("Pruning Docker build cache for service %s", deployment.Service)
+		if err := e.dockerClient.BuilderPrune(ctx); err != nil {
+			log.Printf("Warning: build cache prune failed for %s: %v", deployment.Service, err)
+		} else {
+			log.Printf("Build cache pruned successfully for service %s", deployment.Service)
+		}
+	}
 }
 
 // handleDeploymentFailure handles a failed deployment
@@ -167,29 +231,35 @@ func (e *Engine) handleDeploymentFailure(deployment *Deployment, phase string, e
 	errMsg := fmt.Sprintf("deployment failed at %s phase: %v", phase, err)
 	log.Printf("Deployment %s failed: %s", deployment.ID, errMsg)
 
+	finalStatus := StatusFailed
+
 	// Attempt rollback if enabled and we have a previous image
 	if svcCfg.Rollback.Enabled && deployment.PreviousImage != "" {
 		log.Printf("Attempting rollback for deployment %s", deployment.ID)
-		if err := e.rollback(context.Background(), deployment, svcCfg); err != nil {
-			errMsg = fmt.Sprintf("%s; rollback failed: %v", errMsg, err)
-			log.Printf("Rollback failed for deployment %s: %v", deployment.ID, err)
+
+		// Rollback gets its own timeout (not the expired deployment context)
+		rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer rollbackCancel()
+
+		if rbErr := e.rollback(rollbackCtx, deployment, svcCfg); rbErr != nil {
+			errMsg = fmt.Sprintf("%s; rollback failed: %v", errMsg, rbErr)
+			log.Printf("Rollback failed for deployment %s: %v", deployment.ID, rbErr)
 		} else {
 			log.Printf("Rollback successful for deployment %s", deployment.ID)
+			finalStatus = StatusRolledBack
 		}
 	}
 
 	now := time.Now()
 	e.updateDeployment(deployment.ID, func(d *Deployment) {
-		d.Status = StatusFailed
+		d.Status = finalStatus
 		d.ErrorMessage = errMsg
 		d.CompletedAt = &now
 	})
 }
 
-// rollback reverts to the previous image
+// rollback reverts to the previously tagged rollback image
 func (e *Engine) rollback(ctx context.Context, deployment *Deployment, svcCfg config.ServiceConfig) error {
-	// For simplicity, we'll just restart the service
-	// In a real implementation, you might want to explicitly set the image
 	dockerOpts := docker.ComposeOptions{
 		ComposeFile: svcCfg.ComposeFile,
 		Service:     svcCfg.ServiceName,
@@ -197,12 +267,46 @@ func (e *Engine) rollback(ctx context.Context, deployment *Deployment, svcCfg co
 		Env:         svcCfg.Env,
 	}
 
+	// If we have a rollback tag, restore it as the original image before bringing up
+	if deployment.RollbackTag != "" {
+		if err := e.dockerClient.TagImage(ctx, deployment.RollbackTag, deployment.PreviousImage); err != nil {
+			return fmt.Errorf("rollback tag restore failed: %w", err)
+		}
+		log.Printf("Restored rollback image: %s -> %s", deployment.RollbackTag, deployment.PreviousImage)
+	}
+
 	if err := e.dockerClient.ComposeUp(ctx, dockerOpts); err != nil {
 		return fmt.Errorf("rollback compose up failed: %w", err)
 	}
 
-	deployment.Status = StatusRolledBack
 	return nil
+}
+
+// cleanupOldRollbackTags removes old rollback image tags, keeping the most recent N.
+func (e *Engine) cleanupOldRollbackTags(ctx context.Context, serviceName string, keepImages int) {
+	if keepImages <= 0 {
+		return
+	}
+
+	pattern := fmt.Sprintf("%s:rollback-*", serviceName)
+	images, err := e.dockerClient.ListImagesByFilter(ctx, pattern)
+	if err != nil {
+		log.Printf("Warning: could not list rollback images for %s: %v", serviceName, err)
+		return
+	}
+
+	// Docker lists images newest-first. Keep the first N, remove the rest.
+	if len(images) <= keepImages {
+		return
+	}
+
+	for _, img := range images[keepImages:] {
+		if err := e.dockerClient.RemoveImage(ctx, img); err != nil {
+			log.Printf("Warning: could not remove old rollback image %s: %v", img, err)
+		} else {
+			log.Printf("Removed old rollback image: %s", img)
+		}
+	}
 }
 
 // GetDeployment retrieves a deployment by ID

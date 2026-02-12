@@ -70,28 +70,73 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
 	}
 
-	if err := h.verifier.Verify(headers, body); err != nil {
+	authMethod, err := h.verifier.Verify(headers, body)
+	if err != nil {
 		log.Printf("Authentication failed: %v", err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{
 			"error": "authentication failed",
 		})
 	}
 
-	// Parse request body
-	var req DeployRequest
-	if len(body) > 0 {
-		if err := json.Unmarshal(body, &req); err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "invalid request body",
+	svcCfg := h.config.Services[serviceName]
+	opts := deploy.DeployOptions{}
+
+	if svcCfg.Mode == config.DeployModeBuild {
+		// Build mode: parse webhook push payload to get clone info
+		var pushEvent *PushEvent
+		switch authMethod {
+		case AuthMethodGitHub:
+			pushEvent, _ = ParseGitHubPush(body)
+		case AuthMethodGitLab:
+			pushEvent, _ = ParseGitLabPush(body)
+		case AuthMethodFastShip:
+			// Try GitHub format first, then GitLab
+			pushEvent, _ = ParseGitHubPush(body)
+			if pushEvent == nil {
+				pushEvent, _ = ParseGitLabPush(body)
+			}
+		}
+
+		// Branch filter: only deploy if push is to configured branch
+		if pushEvent != nil && pushEvent.Branch != svcCfg.Branch {
+			log.Printf("Skipping deployment for %s: push to %s, configured branch is %s", serviceName, pushEvent.Branch, svcCfg.Branch)
+			return c.JSON(http.StatusOK, map[string]string{
+				"status": "skipped",
+				"reason": fmt.Sprintf("push to %s, expected %s", pushEvent.Branch, svcCfg.Branch),
 			})
 		}
+
+		// Determine clone URL: webhook payload takes precedence over config fallback
+		if pushEvent != nil && pushEvent.CloneURL != "" {
+			opts.CloneURL = pushEvent.CloneURL
+			opts.Branch = pushEvent.Branch
+			opts.Commit = pushEvent.Commit
+		} else {
+			opts.CloneURL = svcCfg.Repo
+			opts.Branch = svcCfg.Branch
+		}
+
+		if opts.CloneURL == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "build mode requires a clone URL (from webhook payload or 'repo' in config)",
+			})
+		}
+	} else {
+		// Pull mode: parse standard deploy request
+		var req DeployRequest
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &req); err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{
+					"error": "invalid request body",
+				})
+			}
+		}
+		opts.Image = req.Image
+		opts.Tag = req.Tag
 	}
 
 	// Initiate deployment
-	deployment, err := h.engine.Deploy(c.Request().Context(), serviceName, deploy.DeployOptions{
-		Image: req.Image,
-		Tag:   req.Tag,
-	})
+	deployment, err := h.engine.Deploy(c.Request().Context(), serviceName, opts)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),
@@ -141,7 +186,7 @@ func (h *Handler) HandleRollback(c echo.Context) error {
 		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
 	}
 
-	if err := h.verifier.Verify(headers, body); err != nil {
+	if _, err := h.verifier.Verify(headers, body); err != nil {
 		log.Printf("Authentication failed: %v", err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{
 			"error": "authentication failed",
@@ -160,7 +205,9 @@ type DeploymentInfo struct {
 	ID          string  `json:"id"`
 	Service     string  `json:"service"`
 	Status      string  `json:"status"`
+	Mode        string  `json:"mode,omitempty"`
 	Image       string  `json:"image,omitempty"`
+	RollbackTag string  `json:"rollback_tag,omitempty"`
 	StartedAt   string  `json:"started_at"`
 	CompletedAt *string `json:"completed_at,omitempty"`
 	Error       string  `json:"error,omitempty"`
@@ -173,12 +220,14 @@ func (h *Handler) HandleListDeployments(c echo.Context) error {
 	info := make([]DeploymentInfo, 0, len(deployments))
 	for _, d := range deployments {
 		item := DeploymentInfo{
-			ID:        d.ID,
-			Service:   d.Service,
-			Status:    string(d.Status),
-			Image:     d.Image,
-			StartedAt: d.StartedAt.Format(time.RFC3339),
-			Error:     d.ErrorMessage,
+			ID:          d.ID,
+			Service:     d.Service,
+			Status:      string(d.Status),
+			Mode:        d.Mode,
+			Image:       d.Image,
+			RollbackTag: d.RollbackTag,
+			StartedAt:   d.StartedAt.Format(time.RFC3339),
+			Error:       d.ErrorMessage,
 		}
 		if d.CompletedAt != nil {
 			completedAt := d.CompletedAt.Format(time.RFC3339)

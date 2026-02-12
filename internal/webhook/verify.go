@@ -32,21 +32,21 @@ func NewVerifier(secret string) *Verifier {
 // - GitHub: X-Hub-Signature-256 with HMAC-SHA256
 // - GitLab: X-GitLab-Token with simple token comparison
 // - FastShip: X-FastShip-Secret with either HMAC or simple secret
-func (v *Verifier) Verify(headers map[string]string, body []byte) error {
+func (v *Verifier) Verify(headers map[string]string, body []byte) (AuthMethod, error) {
 	// Try GitHub-style HMAC signature
 	if sig := headers["X-Hub-Signature-256"]; sig != "" {
 		if v.verifyHMAC(body, sig) {
-			return nil
+			return AuthMethodGitHub, nil
 		}
-		return fmt.Errorf("invalid GitHub signature")
+		return "", fmt.Errorf("invalid GitHub signature")
 	}
 
 	// Try GitLab token
 	if token := headers["X-GitLab-Token"]; token != "" {
 		if token == v.secret {
-			return nil
+			return AuthMethodGitLab, nil
 		}
-		return fmt.Errorf("invalid GitLab token")
+		return "", fmt.Errorf("invalid GitLab token")
 	}
 
 	// Try FastShip secret (supports both HMAC and simple secret)
@@ -54,18 +54,18 @@ func (v *Verifier) Verify(headers map[string]string, body []byte) error {
 		// Check if it's an HMAC signature (starts with "sha256=")
 		if strings.HasPrefix(secret, "sha256=") {
 			if v.verifyHMAC(body, secret) {
-				return nil
+				return AuthMethodFastShip, nil
 			}
-			return fmt.Errorf("invalid FastShip HMAC signature")
+			return "", fmt.Errorf("invalid FastShip HMAC signature")
 		}
 		// Simple secret comparison
 		if secret == v.secret {
-			return nil
+			return AuthMethodFastShip, nil
 		}
-		return fmt.Errorf("invalid FastShip secret")
+		return "", fmt.Errorf("invalid FastShip secret")
 	}
 
-	return fmt.Errorf("no authentication header found")
+	return "", fmt.Errorf("no authentication header found")
 }
 
 // verifyHMAC verifies an HMAC-SHA256 signature

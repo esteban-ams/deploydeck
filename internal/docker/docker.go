@@ -54,6 +54,36 @@ func (c *Client) ComposePull(ctx context.Context, opts ComposeOptions) error {
 	return nil
 }
 
+// ComposeBuild executes 'docker compose build' for a service
+func (c *Client) ComposeBuild(ctx context.Context, opts ComposeOptions) error {
+	args := []string{"compose"}
+
+	if opts.ComposeFile != "" {
+		args = append(args, "-f", opts.ComposeFile)
+	}
+
+	args = append(args, "build", opts.Service)
+
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	if opts.WorkingDir != "" {
+		cmd.Dir = opts.WorkingDir
+	}
+
+	// Set environment variables
+	if len(opts.Env) > 0 {
+		cmd.Env = append(cmd.Environ(), formatEnv(opts.Env)...)
+	}
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker compose build failed: %w: %s", err, stderr.String())
+	}
+
+	return nil
+}
+
 // ComposeUp executes 'docker compose up -d' for a service
 func (c *Client) ComposeUp(ctx context.Context, opts ComposeOptions) error {
 	args := []string{"compose"}
@@ -152,6 +182,74 @@ func (c *Client) GetContainerName(ctx context.Context, opts ComposeOptions) (str
 	name = strings.TrimPrefix(name, "/")
 
 	return name, nil
+}
+
+// TagImage tags a Docker image with a new name.
+func (c *Client) TagImage(ctx context.Context, source, target string) error {
+	cmd := exec.CommandContext(ctx, "docker", "tag", source, target)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker tag failed: %w: %s", err, stderr.String())
+	}
+
+	return nil
+}
+
+// RemoveImage removes a Docker image by name/tag.
+func (c *Client) RemoveImage(ctx context.Context, image string) error {
+	cmd := exec.CommandContext(ctx, "docker", "rmi", image)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker rmi failed: %w: %s", err, stderr.String())
+	}
+
+	return nil
+}
+
+// ListImagesByFilter lists images matching a reference filter pattern.
+func (c *Client) ListImagesByFilter(ctx context.Context, reference string) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "docker", "images",
+		"--filter", fmt.Sprintf("reference=%s", reference),
+		"--format", "{{.Repository}}:{{.Tag}}")
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("docker images list failed: %w: %s", err, stderr.String())
+	}
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	var images []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			images = append(images, line)
+		}
+	}
+
+	return images, nil
+}
+
+// BuilderPrune removes unused Docker build cache.
+func (c *Client) BuilderPrune(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "docker", "builder", "prune", "-f")
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("docker builder prune failed: %w: %s", err, stderr.String())
+	}
+
+	return nil
 }
 
 // formatEnv converts a map of environment variables to []string format

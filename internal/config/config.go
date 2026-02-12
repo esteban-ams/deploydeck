@@ -2,10 +2,20 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
+)
+
+// DeployMode represents how a service is deployed
+type DeployMode string
+
+const (
+	DeployModePull  DeployMode = "pull"
+	DeployModeBuild DeployMode = "build"
 )
 
 // Config represents the complete FastShip configuration
@@ -48,12 +58,19 @@ type LoggingConfig struct {
 
 // ServiceConfig represents a single deployable service
 type ServiceConfig struct {
-	ComposeFile string            `yaml:"compose_file"`
-	ServiceName string            `yaml:"service_name"`
-	WorkingDir  string            `yaml:"working_dir"`
-	HealthCheck HealthCheckConfig `yaml:"health_check"`
-	Rollback    RollbackConfig    `yaml:"rollback"`
-	Env         map[string]string `yaml:"env"`
+	ComposeFile    string            `yaml:"compose_file"`
+	ServiceName    string            `yaml:"service_name"`
+	WorkingDir     string            `yaml:"working_dir"`
+	Mode           DeployMode        `yaml:"mode"`              // "pull" (default) or "build"
+	Branch         string            `yaml:"branch"`            // branch filter for build mode (default "main")
+	Repo           string            `yaml:"repo"`              // fallback clone URL if webhook payload lacks it
+	CloneToken     string            `yaml:"clone_token"`       // auth token for private repos
+	CloneTokenFile string            `yaml:"clone_token_file"`  // path to file containing token (Docker secrets)
+	Timeout        time.Duration     `yaml:"timeout"`           // overall deployment timeout
+	PruneAfterBuild bool            `yaml:"prune_after_build"` // clean Docker build cache after successful build
+	HealthCheck    HealthCheckConfig `yaml:"health_check"`
+	Rollback       RollbackConfig    `yaml:"rollback"`
+	Env            map[string]string `yaml:"env"`
 }
 
 // HealthCheckConfig holds health check settings
@@ -86,6 +103,9 @@ func Load(configPath string) (*Config, error) {
 	// Apply environment variable overrides
 	applyEnvOverrides(&cfg)
 
+	// Resolve clone tokens from files and env var
+	resolveTokenFiles(&cfg)
+
 	// Apply defaults
 	applyDefaults(&cfg)
 
@@ -113,6 +133,36 @@ func applyEnvOverrides(cfg *Config) {
 	}
 }
 
+// resolveTokenFiles resolves clone tokens from files and env var fallback.
+// Priority: clone_token (YAML) > clone_token_file > FASTSHIP_CLONE_TOKEN (env)
+func resolveTokenFiles(cfg *Config) {
+	envToken := os.Getenv("FASTSHIP_CLONE_TOKEN")
+
+	for name, svc := range cfg.Services {
+		if svc.CloneToken != "" {
+			continue
+		}
+
+		// Try reading from file
+		if svc.CloneTokenFile != "" {
+			data, err := os.ReadFile(svc.CloneTokenFile)
+			if err != nil {
+				log.Printf("Warning: could not read clone_token_file for service %s: %v", name, err)
+			} else if token := strings.TrimSpace(string(data)); token != "" {
+				svc.CloneToken = token
+				cfg.Services[name] = svc
+				continue
+			}
+		}
+
+		// Fall back to env var
+		if envToken != "" {
+			svc.CloneToken = envToken
+			cfg.Services[name] = svc
+		}
+	}
+}
+
 // applyDefaults sets default values for missing configuration
 func applyDefaults(cfg *Config) {
 	if cfg.Server.Port == 0 {
@@ -130,6 +180,20 @@ func applyDefaults(cfg *Config) {
 
 	// Apply defaults for each service
 	for name, svc := range cfg.Services {
+		if svc.Mode == "" {
+			svc.Mode = DeployModePull
+		}
+		if svc.Mode == DeployModeBuild && svc.Branch == "" {
+			svc.Branch = "main"
+		}
+		if svc.Timeout == 0 {
+			switch svc.Mode {
+			case DeployModeBuild:
+				svc.Timeout = 10 * time.Minute
+			default:
+				svc.Timeout = 5 * time.Minute
+			}
+		}
 		if svc.WorkingDir == "" {
 			// Use directory of compose file as working dir
 			svc.WorkingDir = "."
@@ -166,6 +230,9 @@ func validate(cfg *Config) error {
 		}
 		if svc.ServiceName == "" {
 			return fmt.Errorf("service %s: service_name is required", name)
+		}
+		if svc.Mode != DeployModePull && svc.Mode != DeployModeBuild {
+			return fmt.Errorf("service %s: mode must be 'pull' or 'build', got '%s'", name, svc.Mode)
 		}
 	}
 
