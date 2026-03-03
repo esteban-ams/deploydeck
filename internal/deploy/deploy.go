@@ -228,7 +228,7 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 
 // handleDeploymentFailure handles a failed deployment
 func (e *Engine) handleDeploymentFailure(deployment *Deployment, phase string, err error, svcCfg config.ServiceConfig) {
-	errMsg := fmt.Sprintf("deployment failed at %s phase: %v", phase, err)
+	errMsg := fmt.Sprintf("service %q: deployment failed at %s phase: %v", deployment.Service, phase, err)
 	log.Printf("Deployment %s failed: %s", deployment.ID, errMsg)
 
 	finalStatus := StatusFailed
@@ -270,13 +270,13 @@ func (e *Engine) rollback(ctx context.Context, deployment *Deployment, svcCfg co
 	// If we have a rollback tag, restore it as the original image before bringing up
 	if deployment.RollbackTag != "" {
 		if err := e.dockerClient.TagImage(ctx, deployment.RollbackTag, deployment.PreviousImage); err != nil {
-			return fmt.Errorf("rollback tag restore failed: %w", err)
+			return fmt.Errorf("failed to restore rollback image tag %q to %q: %w", deployment.RollbackTag, deployment.PreviousImage, err)
 		}
 		log.Printf("Restored rollback image: %s -> %s", deployment.RollbackTag, deployment.PreviousImage)
 	}
 
 	if err := e.dockerClient.ComposeUp(ctx, dockerOpts); err != nil {
-		return fmt.Errorf("rollback compose up failed: %w", err)
+		return fmt.Errorf("docker compose up failed during rollback of service %q: %w", deployment.Service, err)
 	}
 
 	return nil

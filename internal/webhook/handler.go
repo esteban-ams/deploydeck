@@ -46,6 +46,15 @@ type DeployResponse struct {
 	Service      string `json:"service"`
 }
 
+// authHeaders extracts the three supported auth headers from an Echo request.
+func authHeaders(c echo.Context) map[string]string {
+	return map[string]string{
+		"X-Hub-Signature-256": c.Request().Header.Get("X-Hub-Signature-256"),
+		"X-GitLab-Token":      c.Request().Header.Get("X-GitLab-Token"),
+		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
+	}
+}
+
 // HandleDeploy handles POST /api/deploy/:service
 func (h *Handler) HandleDeploy(c echo.Context) error {
 	serviceName := c.Param("service")
@@ -53,7 +62,7 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 	// Verify the service exists
 	if _, ok := h.config.Services[serviceName]; !ok {
 		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": fmt.Sprintf("service %s not found", serviceName),
+			"error": fmt.Sprintf("service %q not found: check that it is defined under 'services' in config.yaml", serviceName),
 		})
 	}
 
@@ -61,22 +70,16 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "failed to read request body",
+			"error": "failed to read request body: the connection may have been interrupted",
 		})
 	}
 
-	// Verify webhook signature (use case-insensitive header access)
-	headers := map[string]string{
-		"X-Hub-Signature-256": c.Request().Header.Get("X-Hub-Signature-256"),
-		"X-GitLab-Token":      c.Request().Header.Get("X-GitLab-Token"),
-		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
-	}
-
-	authMethod, err := h.verifier.Verify(headers, body)
+	// Verify webhook signature
+	authMethod, err := h.verifier.Verify(authHeaders(c), body)
 	if err != nil {
-		log.Printf("Authentication failed: %v", err)
+		log.Printf("Authentication failed for service %q: %v", serviceName, err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "authentication failed",
+			"error": fmt.Sprintf("authentication failed for service %q: %v", serviceName, err),
 		})
 	}
 
@@ -101,10 +104,10 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 
 		// Branch filter: only deploy if push is to configured branch
 		if pushEvent != nil && pushEvent.Branch != svcCfg.Branch {
-			log.Printf("Skipping deployment for %s: push to %s, configured branch is %s", serviceName, pushEvent.Branch, svcCfg.Branch)
+			log.Printf("Skipping deployment for %s: push to branch %q, service deploys branch %q", serviceName, pushEvent.Branch, svcCfg.Branch)
 			return c.JSON(http.StatusOK, map[string]string{
 				"status": "skipped",
-				"reason": fmt.Sprintf("push to %s, expected %s", pushEvent.Branch, svcCfg.Branch),
+				"reason": fmt.Sprintf("push to branch %q ignored: service %q only deploys branch %q", pushEvent.Branch, serviceName, svcCfg.Branch),
 			})
 		}
 
@@ -120,7 +123,9 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 
 		if opts.CloneURL == "" {
 			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "build mode requires a clone URL (from webhook payload or 'repo' in config)",
+				"error": fmt.Sprintf("service %q uses build mode but no repository URL was found: "+
+					"either send a GitHub/GitLab push webhook payload (which includes the clone URL) "+
+					"or set 'repo' under service %q in config.yaml", serviceName, serviceName),
 			})
 		}
 	} else {
@@ -129,7 +134,7 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 		if len(body) > 0 {
 			if err := json.Unmarshal(body, &req); err != nil {
 				return c.JSON(http.StatusBadRequest, map[string]string{
-					"error": "invalid request body",
+					"error": fmt.Sprintf("failed to parse request body for service %q: expected JSON with optional 'image' and 'tag' fields, got: %v", serviceName, err),
 				})
 			}
 		}
@@ -141,7 +146,7 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 	deployment, err := h.engine.Deploy(c.Request().Context(), serviceName, opts)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": err.Error(),
+			"error": fmt.Sprintf("failed to initiate deployment for service %q: %v", serviceName, err),
 		})
 	}
 
@@ -169,7 +174,7 @@ func (h *Handler) HandleRollback(c echo.Context) error {
 	// Verify the service exists
 	if _, ok := h.config.Services[serviceName]; !ok {
 		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": fmt.Sprintf("service %s not found", serviceName),
+			"error": fmt.Sprintf("service %q not found: check that it is defined under 'services' in config.yaml", serviceName),
 		})
 	}
 
@@ -177,21 +182,15 @@ func (h *Handler) HandleRollback(c echo.Context) error {
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "failed to read request body",
+			"error": "failed to read request body: the connection may have been interrupted",
 		})
 	}
 
-	// Verify webhook signature (use case-insensitive header access)
-	headers := map[string]string{
-		"X-Hub-Signature-256": c.Request().Header.Get("X-Hub-Signature-256"),
-		"X-GitLab-Token":      c.Request().Header.Get("X-GitLab-Token"),
-		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
-	}
-
-	if _, err := h.verifier.Verify(headers, body); err != nil {
-		log.Printf("Authentication failed: %v", err)
+	// Verify webhook signature
+	if _, err := h.verifier.Verify(authHeaders(c), body); err != nil {
+		log.Printf("Authentication failed for service %q rollback: %v", serviceName, err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "authentication failed",
+			"error": fmt.Sprintf("authentication failed for service %q rollback: %v", serviceName, err),
 		})
 	}
 
@@ -217,6 +216,15 @@ type DeploymentInfo struct {
 
 // HandleListDeployments handles GET /api/deployments
 func (h *Handler) HandleListDeployments(c echo.Context) error {
+	// GET requests carry no body; pass nil so HMAC methods fall through to
+	// token-based checks (X-GitLab-Token or X-FastShip-Secret).
+	if _, err := h.verifier.Verify(authHeaders(c), nil); err != nil {
+		log.Printf("Authentication failed for GET /api/deployments: %v", err)
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": fmt.Sprintf("authentication failed: %v", err),
+		})
+	}
+
 	deployments := h.engine.ListDeployments()
 
 	info := make([]DeploymentInfo, 0, len(deployments))

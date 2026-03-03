@@ -13,6 +13,14 @@ auth:
   # Generate with: openssl rand -hex 32
   webhook_secret: "your-secret-here-replace-this"
 
+# Rate limiting for the /api/deploy and /api/rollback endpoints.
+# Each remote IP is tracked independently using a token-bucket algorithm.
+# Overrides: FASTSHIP_RATE_LIMIT_RPM (requests_per_minute), FASTSHIP_RATE_LIMIT_BURST (burst_size)
+rate_limit:
+  enabled: true
+  requests_per_minute: 10   # sustained requests allowed per IP per minute
+  burst_size: 5             # maximum burst above the steady rate
+
 dashboard:
   enabled: false
   username: "admin"

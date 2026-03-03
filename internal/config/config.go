@@ -22,9 +22,20 @@ const (
 type Config struct {
 	Server    ServerConfig             `yaml:"server"`
 	Auth      AuthConfig               `yaml:"auth"`
+	RateLimit RateLimitConfig          `yaml:"rate_limit"`
 	Dashboard DashboardConfig          `yaml:"dashboard"`
 	Logging   LoggingConfig            `yaml:"logging"`
 	Services  map[string]ServiceConfig `yaml:"services"`
+}
+
+// RateLimitConfig holds rate limiting configuration for webhook endpoints
+type RateLimitConfig struct {
+	// Enabled controls whether rate limiting is active (default: true)
+	Enabled bool `yaml:"enabled"`
+	// RequestsPerMinute is the max number of requests per IP per minute (default: 10)
+	RequestsPerMinute int `yaml:"requests_per_minute"`
+	// BurstSize is the maximum burst above the steady rate (default: 5)
+	BurstSize int `yaml:"burst_size"`
 }
 
 // ServerConfig holds HTTP server configuration
@@ -92,12 +103,12 @@ type RollbackConfig struct {
 func Load(configPath string) (*Config, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("read config file: %w", err)
+		return nil, fmt.Errorf("cannot read config file %q: %w (run 'cp config.example.yaml config.yaml' to create one)", configPath, err)
 	}
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parse config file: %w", err)
+		return nil, fmt.Errorf("cannot parse config file %q as YAML: %w", configPath, err)
 	}
 
 	// Apply environment variable overrides
@@ -111,7 +122,7 @@ func Load(configPath string) (*Config, error) {
 
 	// Validate configuration
 	if err := validate(&cfg); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+		return nil, fmt.Errorf("invalid configuration in %q: %w", configPath, err)
 	}
 
 	return &cfg, nil
@@ -131,6 +142,12 @@ func applyEnvOverrides(cfg *Config) {
 	if logLevel := os.Getenv("FASTSHIP_LOG_LEVEL"); logLevel != "" {
 		cfg.Logging.Level = logLevel
 	}
+	if rps := os.Getenv("FASTSHIP_RATE_LIMIT_RPM"); rps != "" {
+		fmt.Sscanf(rps, "%d", &cfg.RateLimit.RequestsPerMinute)
+	}
+	if burst := os.Getenv("FASTSHIP_RATE_LIMIT_BURST"); burst != "" {
+		fmt.Sscanf(burst, "%d", &cfg.RateLimit.BurstSize)
+	}
 }
 
 // resolveTokenFiles resolves clone tokens from files and env var fallback.
@@ -147,7 +164,7 @@ func resolveTokenFiles(cfg *Config) {
 		if svc.CloneTokenFile != "" {
 			data, err := os.ReadFile(svc.CloneTokenFile)
 			if err != nil {
-				log.Printf("Warning: could not read clone_token_file for service %s: %v", name, err)
+				log.Printf("Warning: service %q: cannot read clone_token_file %q: %v (falling back to FASTSHIP_CLONE_TOKEN env var)", name, svc.CloneTokenFile, err)
 			} else if token := strings.TrimSpace(string(data)); token != "" {
 				svc.CloneToken = token
 				cfg.Services[name] = svc
@@ -176,6 +193,20 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Logging.Format == "" {
 		cfg.Logging.Format = "text"
+	}
+
+	// Rate limiting defaults: enabled with 10 req/min and burst of 5.
+	// Enabled defaults to true when the rate_limit section is absent or
+	// when enabled is not explicitly set to false.
+	if !cfg.RateLimit.Enabled && cfg.RateLimit.RequestsPerMinute == 0 {
+		// Section was omitted entirely — apply full defaults with enabled=true.
+		cfg.RateLimit.Enabled = true
+	}
+	if cfg.RateLimit.RequestsPerMinute == 0 {
+		cfg.RateLimit.RequestsPerMinute = 10
+	}
+	if cfg.RateLimit.BurstSize == 0 {
+		cfg.RateLimit.BurstSize = 5
 	}
 
 	// Apply defaults for each service
@@ -217,22 +248,22 @@ func applyDefaults(cfg *Config) {
 // validate checks that the configuration is valid
 func validate(cfg *Config) error {
 	if cfg.Auth.WebhookSecret == "" {
-		return fmt.Errorf("auth.webhook_secret is required")
+		return fmt.Errorf("auth.webhook_secret is required: set it in config.yaml or via the FASTSHIP_WEBHOOK_SECRET environment variable")
 	}
 
 	if len(cfg.Services) == 0 {
-		return fmt.Errorf("at least one service must be configured")
+		return fmt.Errorf("no services defined: add at least one service under the 'services' key in config.yaml")
 	}
 
 	for name, svc := range cfg.Services {
 		if svc.ComposeFile == "" {
-			return fmt.Errorf("service %s: compose_file is required", name)
+			return fmt.Errorf("service %q: 'compose_file' is required (e.g. compose_file: /opt/myapp/docker-compose.yml)", name)
 		}
 		if svc.ServiceName == "" {
-			return fmt.Errorf("service %s: service_name is required", name)
+			return fmt.Errorf("service %q: 'service_name' is required — this must match the service name in your Docker Compose file", name)
 		}
 		if svc.Mode != DeployModePull && svc.Mode != DeployModeBuild {
-			return fmt.Errorf("service %s: mode must be 'pull' or 'build', got '%s'", name, svc.Mode)
+			return fmt.Errorf("service %q: invalid mode %q — must be 'pull' (deploy a pre-built image) or 'build' (clone and build on this server)", name, svc.Mode)
 		}
 	}
 

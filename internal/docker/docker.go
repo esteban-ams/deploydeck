@@ -48,7 +48,8 @@ func (c *Client) ComposePull(ctx context.Context, opts ComposeOptions) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker compose pull failed: %w: %s", err, stderr.String())
+		return fmt.Errorf("docker compose pull failed for service %q (compose file: %q): %w\nstderr: %s",
+			opts.Service, opts.ComposeFile, err, stderr.String())
 	}
 
 	return nil
@@ -78,7 +79,8 @@ func (c *Client) ComposeBuild(ctx context.Context, opts ComposeOptions) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker compose build failed: %w: %s", err, stderr.String())
+		return fmt.Errorf("docker compose build failed for service %q (compose file: %q): %w\nstderr: %s",
+			opts.Service, opts.ComposeFile, err, stderr.String())
 	}
 
 	return nil
@@ -108,7 +110,8 @@ func (c *Client) ComposeUp(ctx context.Context, opts ComposeOptions) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker compose up failed: %w: %s", err, stderr.String())
+		return fmt.Errorf("docker compose up failed for service %q (compose file: %q): %w\nstderr: %s",
+			opts.Service, opts.ComposeFile, err, stderr.String())
 	}
 
 	return nil
@@ -125,12 +128,12 @@ func (c *Client) GetCurrentImage(ctx context.Context, containerName string) (str
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("get current image failed: %w: %s", err, stderr.String())
+		return "", fmt.Errorf("docker inspect failed for container %q: %w\nstderr: %s", containerName, err, stderr.String())
 	}
 
 	image := strings.TrimSpace(stdout.String())
 	if image == "" {
-		return "", fmt.Errorf("container %s not found or has no image", containerName)
+		return "", fmt.Errorf("container %q has no image configured (is it running?)", containerName)
 	}
 
 	return image, nil
@@ -156,12 +159,13 @@ func (c *Client) GetContainerName(ctx context.Context, opts ComposeOptions) (str
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("get container name failed: %w: %s", err, stderr.String())
+		return "", fmt.Errorf("docker compose ps failed for service %q (compose file: %q): %w\nstderr: %s",
+			opts.Service, opts.ComposeFile, err, stderr.String())
 	}
 
 	containerID := strings.TrimSpace(stdout.String())
 	if containerID == "" {
-		return "", fmt.Errorf("no container found for service %s", opts.Service)
+		return "", fmt.Errorf("no running container found for compose service %q — is it started?", opts.Service)
 	}
 
 	// Get container name from ID
@@ -174,7 +178,7 @@ func (c *Client) GetContainerName(ctx context.Context, opts ComposeOptions) (str
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("get container name from ID failed: %w: %s", err, stderr.String())
+		return "", fmt.Errorf("docker inspect failed for container ID %q: %w\nstderr: %s", containerID, err, stderr.String())
 	}
 
 	name := strings.TrimSpace(stdout.String())
@@ -192,7 +196,7 @@ func (c *Client) TagImage(ctx context.Context, source, target string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker tag failed: %w: %s", err, stderr.String())
+		return fmt.Errorf("docker tag %q -> %q failed: %w\nstderr: %s", source, target, err, stderr.String())
 	}
 
 	return nil
@@ -206,7 +210,7 @@ func (c *Client) RemoveImage(ctx context.Context, image string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker rmi failed: %w: %s", err, stderr.String())
+		return fmt.Errorf("docker rmi %q failed: %w\nstderr: %s", image, err, stderr.String())
 	}
 
 	return nil
@@ -223,7 +227,7 @@ func (c *Client) ListImagesByFilter(ctx context.Context, reference string) ([]st
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("docker images list failed: %w: %s", err, stderr.String())
+		return nil, fmt.Errorf("docker images --filter reference=%q failed: %w\nstderr: %s", reference, err, stderr.String())
 	}
 
 	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
@@ -246,7 +250,7 @@ func (c *Client) BuilderPrune(ctx context.Context) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker builder prune failed: %w: %s", err, stderr.String())
+		return fmt.Errorf("docker builder prune failed: %w\nstderr: %s", err, stderr.String())
 	}
 
 	return nil

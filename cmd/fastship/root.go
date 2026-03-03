@@ -12,6 +12,7 @@ import (
 
 	"github.com/esteban-ams/fastship/internal/config"
 	"github.com/esteban-ams/fastship/internal/deploy"
+	"github.com/esteban-ams/fastship/internal/ratelimit"
 	"github.com/esteban-ams/fastship/internal/webhook"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -65,10 +66,19 @@ func runServer(cmd *cobra.Command, args []string) error {
 	e.Use(middleware.CORS())
 
 	api := e.Group("/api")
-	api.POST("/deploy/:service", handler.HandleDeploy)
-	api.POST("/rollback/:service", handler.HandleRollback)
 	api.GET("/deployments", handler.HandleListDeployments)
 	api.GET("/health", handler.HandleHealth)
+
+	// Rate limiting applies only to the mutating webhook endpoints.
+	webhookGroup := api.Group("")
+	if cfg.RateLimit.Enabled {
+		log.Printf("Rate limiting enabled: %d requests/min per IP (burst: %d)",
+			cfg.RateLimit.RequestsPerMinute, cfg.RateLimit.BurstSize)
+		rl := ratelimit.NewLimiter(cfg.RateLimit.RequestsPerMinute, cfg.RateLimit.BurstSize)
+		webhookGroup.Use(rl.Middleware())
+	}
+	webhookGroup.POST("/deploy/:service", handler.HandleDeploy)
+	webhookGroup.POST("/rollback/:service", handler.HandleRollback)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Server listening on %s", addr)

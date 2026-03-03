@@ -32,7 +32,7 @@ func (c *Client) Clone(ctx context.Context, opts CloneOptions) error {
 	// Remove existing directory for a clean clone
 	if _, err := os.Stat(opts.WorkingDir); err == nil {
 		if err := os.RemoveAll(opts.WorkingDir); err != nil {
-			return fmt.Errorf("failed to clean working directory: %w", err)
+			return fmt.Errorf("failed to remove existing working directory %q before clone: %w", opts.WorkingDir, err)
 		}
 	}
 
@@ -42,7 +42,7 @@ func (c *Client) Clone(ctx context.Context, opts CloneOptions) error {
 		var err error
 		cloneURL, err = injectToken(cloneURL, opts.Token)
 		if err != nil {
-			return fmt.Errorf("failed to inject auth token: %w", err)
+			return fmt.Errorf("failed to inject auth token into clone URL %q: %w", opts.URL, err)
 		}
 	}
 
@@ -58,7 +58,8 @@ func (c *Client) Clone(ctx context.Context, opts CloneOptions) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("git clone failed: %w: %s", err, stderr.String())
+		return fmt.Errorf("git clone of %q (branch: %q) into %q failed: %w\nstderr: %s",
+			opts.URL, opts.Branch, opts.WorkingDir, err, stderr.String())
 	}
 
 	return nil
@@ -71,7 +72,7 @@ func (c *Client) Clone(ctx context.Context, opts CloneOptions) error {
 func injectToken(rawURL, token string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return "", fmt.Errorf("invalid clone URL: %w", err)
+		return "", fmt.Errorf("invalid clone URL %q: %w (must be a valid HTTPS URL, e.g. https://github.com/owner/repo.git)", rawURL, err)
 	}
 
 	host := strings.ToLower(u.Hostname())

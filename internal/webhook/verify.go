@@ -38,7 +38,8 @@ func (v *Verifier) Verify(headers map[string]string, body []byte) (AuthMethod, e
 		if v.verifyHMAC(body, sig) {
 			return AuthMethodGitHub, nil
 		}
-		return "", fmt.Errorf("invalid GitHub signature")
+		return "", fmt.Errorf("GitHub HMAC signature verification failed (X-Hub-Signature-256): " +
+			"ensure the webhook secret in FastShip matches the secret configured in your GitHub repository settings")
 	}
 
 	// Try GitLab token
@@ -46,7 +47,8 @@ func (v *Verifier) Verify(headers map[string]string, body []byte) (AuthMethod, e
 		if token == v.secret {
 			return AuthMethodGitLab, nil
 		}
-		return "", fmt.Errorf("invalid GitLab token")
+		return "", fmt.Errorf("GitLab token verification failed (X-GitLab-Token): " +
+			"ensure the token in your GitLab webhook settings matches auth.webhook_secret in config.yaml")
 	}
 
 	// Try FastShip secret (supports both HMAC and simple secret)
@@ -56,16 +58,20 @@ func (v *Verifier) Verify(headers map[string]string, body []byte) (AuthMethod, e
 			if v.verifyHMAC(body, secret) {
 				return AuthMethodFastShip, nil
 			}
-			return "", fmt.Errorf("invalid FastShip HMAC signature")
+			return "", fmt.Errorf("FastShip HMAC signature verification failed (X-FastShip-Secret): " +
+				"the sha256= signature does not match; ensure the request body was not modified in transit " +
+				"and the signing secret matches auth.webhook_secret in config.yaml")
 		}
 		// Simple secret comparison
 		if secret == v.secret {
 			return AuthMethodFastShip, nil
 		}
-		return "", fmt.Errorf("invalid FastShip secret")
+		return "", fmt.Errorf("FastShip secret verification failed (X-FastShip-Secret): " +
+			"the provided secret does not match auth.webhook_secret in config.yaml")
 	}
 
-	return "", fmt.Errorf("no authentication header found")
+	return "", fmt.Errorf("no authentication header found: provide one of " +
+		"X-Hub-Signature-256 (GitHub), X-GitLab-Token (GitLab), or X-FastShip-Secret (FastShip)")
 }
 
 // verifyHMAC verifies an HMAC-SHA256 signature

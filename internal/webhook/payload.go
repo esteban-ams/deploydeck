@@ -25,11 +25,12 @@ func ParseGitHubPush(body []byte) (*PushEvent, error) {
 	}
 
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse GitHub push payload: %w", err)
+		return nil, fmt.Errorf("failed to parse GitHub push payload as JSON: %w", err)
 	}
 
 	if payload.Ref == "" || payload.Repository.CloneURL == "" {
-		return nil, fmt.Errorf("missing required fields in GitHub push payload")
+		return nil, fmt.Errorf("GitHub push payload is missing required fields: 'ref' and 'repository.clone_url' must both be present; " +
+			"ensure the webhook is sending a push event (not a ping or other event type)")
 	}
 
 	return &PushEvent{
@@ -51,11 +52,12 @@ func ParseGitLabPush(body []byte) (*PushEvent, error) {
 	}
 
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse GitLab push payload: %w", err)
+		return nil, fmt.Errorf("failed to parse GitLab push payload as JSON: %w", err)
 	}
 
 	if payload.Ref == "" || payload.Project.HttpURL == "" {
-		return nil, fmt.Errorf("missing required fields in GitLab push payload")
+		return nil, fmt.Errorf("GitLab push payload is missing required fields: 'ref' and 'project.http_url' must both be present; " +
+			"ensure the webhook is sending a push event (not a tag or other event type)")
 	}
 
 	return &PushEvent{
