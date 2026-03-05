@@ -849,6 +849,7 @@ a:hover {
   padding-bottom: 48px;
   margin-bottom: 48px;
   border-bottom: 1px solid var(--border);
+  scroll-margin-top: 90px;
 }
 
 .docs-section:last-child {
@@ -862,6 +863,7 @@ a:hover {
   margin-bottom: 12px;
   padding-top: 12px;
   letter-spacing: -0.02em;
+  scroll-margin-top: 90px;
 }
 
 .docs-content h3 {
@@ -871,6 +873,7 @@ a:hover {
   margin-top: 40px;
   margin-bottom: 12px;
   letter-spacing: -0.01em;
+  scroll-margin-top: 90px;
 }
 
 .docs-content h4 {
