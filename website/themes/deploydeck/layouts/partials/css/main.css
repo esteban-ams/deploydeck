@@ -618,6 +618,7 @@ a:hover {
   font-size: 0.82rem;
   line-height: 1.9;
   overflow-x: auto;
+  white-space: pre;
 }
 
 .code-body .comment {

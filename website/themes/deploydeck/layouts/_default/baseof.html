@@ -6,7 +6,7 @@
   <title>{{ .Title }}</title>
   <meta name="description" content="{{ .Site.Params.description }}">
   <style>
-    {{ partial "css/main.css" . }}
+    {{ partial "css/main.css" . | safeCSS }}
   </style>
 </head>
 <body>
