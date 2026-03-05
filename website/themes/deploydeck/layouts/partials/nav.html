@@ -1,29 +1,29 @@
 <nav class="nav" id="nav">
   <div class="container nav-inner">
-    <a href="#" class="nav-logo">
-      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="10" width="24" height="14" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
-        <rect x="5" y="13" width="5" height="4" rx="1" fill="#00D4AA"/>
-        <rect x="12" y="13" width="5" height="4" rx="1" fill="#00D4AA" opacity="0.7"/>
-        <rect x="19" y="13" width="5" height="4" rx="1" fill="#00D4AA" opacity="0.4"/>
-        <path d="M8 10V7a6 6 0 0 1 12 0v3" stroke="currentColor" stroke-width="2" fill="none"/>
+    <a href="{{ .Site.BaseURL }}" class="nav-logo">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="8" width="18" height="10" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        <rect x="4" y="11" width="3" height="3" rx="0.5" fill="var(--accent)" opacity="0.9"/>
+        <rect x="8.5" y="11" width="3" height="3" rx="0.5" fill="var(--accent)" opacity="0.5"/>
+        <rect x="13" y="11" width="3" height="3" rx="0.5" fill="var(--accent)" opacity="0.25"/>
+        <path d="M6 8V5.5a4 4 0 0 1 8 0V8" stroke="currentColor" stroke-width="1.5" fill="none"/>
       </svg>
       DeployDeck
     </a>
 
     <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="3" y1="6" x2="21" y2="6"/>
-        <line x1="3" y1="12" x2="21" y2="12"/>
-        <line x1="3" y1="18" x2="21" y2="18"/>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <line x1="4" y1="7" x2="20" y2="7"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="17" x2="20" y2="17"/>
       </svg>
     </button>
 
     <ul class="nav-links">
-      <li><a href="/#features">Features</a></li>
-      <li><a href="/#how-it-works">How It Works</a></li>
-      <li><a href="/#quickstart">Quick Start</a></li>
-      <li><a href="/docs/">Docs</a></li>
+      <li><a href="{{ .Site.BaseURL }}#features">Features</a></li>
+      <li><a href="{{ .Site.BaseURL }}#how-it-works">How It Works</a></li>
+      <li><a href="{{ .Site.BaseURL }}#quickstart">Quick Start</a></li>
+      <li><a href="{{ .Site.BaseURL }}docs/">Docs</a></li>
       <li><a href="{{ .Site.Params.githubURL }}" class="nav-cta">GitHub</a></li>
     </ul>
   </div>
