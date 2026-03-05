@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en-us">
-<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1315&amp;path=livereload" data-no-instant defer></script>
+<head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Documentation - DeployDeck</title>
@@ -763,56 +763,51 @@ a:hover {
 
 .docs-sidebar-header {
   padding: 0 20px 16px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .docs-sidebar-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--teal);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
 }
 
 .docs-nav {
-  padding: 0 12px;
+  padding: 0 16px;
 }
 
 .docs-nav-group {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .docs-nav-group-title {
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 6px 12px;
-  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+  padding: 4px 0;
+  margin-bottom: 2px;
 }
 
 .docs-nav-link {
   display: block;
-  padding: 5px 12px 5px 20px;
-  font-size: 0.84rem;
-  color: var(--text-dim);
-  border-radius: 6px;
-  transition: color 0.15s, background 0.15s;
+  padding: 4px 0 4px 12px;
+  font-size: 0.83rem;
+  color: #64748B;
+  transition: color 0.15s;
   line-height: 1.5;
-  border-left: 2px solid transparent;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .docs-nav-link:hover {
   color: var(--text-bright);
-  background: rgba(255, 255, 255, 0.03);
 }
 
 .docs-nav-link.active {
-  color: var(--teal);
-  background: var(--teal-dim);
-  border-left-color: var(--teal);
+  color: var(--text-bright);
+  border-left-color: var(--text-bright);
 }
 
 /* --- Mobile sidebar toggle --- */
@@ -1942,12 +1937,9 @@ Commit: a1b2c3d
 
 <script>
 (function() {
-  
   var sections = document.querySelectorAll('.docs-section');
-  var navLinks = document.querySelectorAll('.docs-nav-group-title');
-  var sidebarLinks = document.querySelectorAll('.docs-nav-link');
+  var groups = document.querySelectorAll('.docs-nav-group');
 
-  
   function updateActiveSection() {
     var scrollPos = window.scrollY + 120;
     var activeSection = '';
@@ -1958,37 +1950,28 @@ Commit: a1b2c3d
       }
     });
 
-    
-    sidebarLinks.forEach(function(link) {
-      var linkSection = link.getAttribute('data-section');
-      if (linkSection === activeSection) {
-        link.classList.add('active');
-      } else {
-        link.classList.remove('active');
-      }
+    groups.forEach(function(group) {
+      var links = group.querySelectorAll('.docs-nav-link');
+      var groupSection = links[0] ? links[0].getAttribute('data-section') : '';
+      var isActive = groupSection === activeSection;
+      links.forEach(function(link) {
+        link.classList.toggle('active', isActive);
+      });
     });
   }
 
   window.addEventListener('scroll', updateActiveSection);
   updateActiveSection();
 
-  
-  sidebarLinks.forEach(function(link) {
-    link.addEventListener('click', function() {
-      document.querySelector('.docs-sidebar').classList.remove('open');
-    });
-  });
-
-  
   document.querySelectorAll('.docs-nav-link').forEach(function(anchor) {
     anchor.addEventListener('click', function(e) {
+      document.querySelector('.docs-sidebar').classList.remove('open');
       var href = this.getAttribute('href');
       if (href && href.startsWith('#')) {
         var target = document.querySelector(href);
         if (target) {
           e.preventDefault();
-          var offset = target.offsetTop - 80;
-          window.scrollTo({ top: offset, behavior: 'smooth' });
+          window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
         }
       }
     });

@@ -81,12 +81,9 @@
 
 <script>
 (function() {
-  // Active section highlighting in sidebar
   var sections = document.querySelectorAll('.docs-section');
-  var navLinks = document.querySelectorAll('.docs-nav-group-title');
-  var sidebarLinks = document.querySelectorAll('.docs-nav-link');
+  var groups = document.querySelectorAll('.docs-nav-group');
 
-  // Track which section is active based on scroll
   function updateActiveSection() {
     var scrollPos = window.scrollY + 120;
     var activeSection = '';
@@ -97,37 +94,28 @@
       }
     });
 
-    // Update group-level active state
-    sidebarLinks.forEach(function(link) {
-      var linkSection = link.getAttribute('data-section');
-      if (linkSection === activeSection) {
-        link.classList.add('active');
-      } else {
-        link.classList.remove('active');
-      }
+    groups.forEach(function(group) {
+      var links = group.querySelectorAll('.docs-nav-link');
+      var groupSection = links[0] ? links[0].getAttribute('data-section') : '';
+      var isActive = groupSection === activeSection;
+      links.forEach(function(link) {
+        link.classList.toggle('active', isActive);
+      });
     });
   }
 
   window.addEventListener('scroll', updateActiveSection);
   updateActiveSection();
 
-  // Close mobile sidebar when clicking a link
-  sidebarLinks.forEach(function(link) {
-    link.addEventListener('click', function() {
-      document.querySelector('.docs-sidebar').classList.remove('open');
-    });
-  });
-
-  // Smooth scroll for sidebar links
   document.querySelectorAll('.docs-nav-link').forEach(function(anchor) {
     anchor.addEventListener('click', function(e) {
+      document.querySelector('.docs-sidebar').classList.remove('open');
       var href = this.getAttribute('href');
       if (href && href.startsWith('#')) {
         var target = document.querySelector(href);
         if (target) {
           e.preventDefault();
-          var offset = target.offsetTop - 80;
-          window.scrollTo({ top: offset, behavior: 'smooth' });
+          window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
         }
       }
     });
