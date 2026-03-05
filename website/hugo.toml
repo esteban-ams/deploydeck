@@ -1,4 +1,4 @@
-baseURL = 'https://deploydeck.dev/'
+baseURL = 'https://esteban-ams.github.io/deploydeck/'
 languageCode = 'en-us'
 title = 'DeployDeck - Container Deployment Command Center'
 theme = 'deploydeck'
