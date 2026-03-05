@@ -1,10 +1,10 @@
-# FastShip Architecture
+# DeployDeck Architecture
 
-This document describes the internal architecture of FastShip for developers who want to contribute or understand how it works.
+This document describes the internal architecture of DeployDeck for developers who want to contribute or understand how it works.
 
 ## Overview
 
-FastShip is built with simplicity and reliability in mind. It's a single Go binary that:
+DeployDeck is built with simplicity and reliability in mind. It's a single Go binary that:
 
 1. Listens for HTTP webhooks
 2. Verifies the request authenticity
@@ -17,7 +17,7 @@ FastShip is built with simplicity and reliability in mind. It's a single Go bina
 
 ```
                                     +-------------------------------------+
-                                    |            FastShip                  |
+                                    |            DeployDeck                  |
                                     |                                     |
 +------------------+                |  +-----------+    +-----------+     |
 |   CI/CD          |  POST /deploy  |  |  Webhook  |    |  Deploy   |     |
@@ -72,7 +72,7 @@ Implements webhook authentication with three methods:
 |--------|--------|-------------|
 | GitHub | `X-Hub-Signature-256` | HMAC-SHA256 |
 | GitLab | `X-GitLab-Token` | Token comparison |
-| FastShip | `X-FastShip-Secret` | HMAC or token |
+| DeployDeck | `X-DeployDeck-Secret` | HMAC or token |
 
 All comparisons use `hmac.Equal()` for constant-time comparison (prevents timing attacks).
 
@@ -170,7 +170,7 @@ type Engine struct {
 1. CLI flags (--port, --config)
    |
    v (overrides)
-2. Environment variables (FASTSHIP_*)
+2. Environment variables (DEPLOYDECK_*)
    |
    v (overrides)
 3. Config file (config.yaml)
@@ -179,7 +179,7 @@ type Engine struct {
 4. Default values
 ```
 
-Token resolution priority: `clone_token` (YAML) > `clone_token_file` > `FASTSHIP_CLONE_TOKEN` (env)
+Token resolution priority: `clone_token` (YAML) > `clone_token_file` > `DEPLOYDECK_CLONE_TOKEN` (env)
 
 ## Testing Strategy
 

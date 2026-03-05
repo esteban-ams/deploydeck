@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/esteban-ams/fastship/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/config"
 )
 
 func TestHealthCheck_HealthyImmediately(t *testing.T) {

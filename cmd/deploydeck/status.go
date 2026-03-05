@@ -5,7 +5,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/esteban-ams/fastship/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +26,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("FastShip %s\n", version)
+	fmt.Printf("DeployDeck %s\n", version)
 	fmt.Println()
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1315&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categories</title>
+  <meta name="description" content="Lightweight webhook server that automates Docker Compose deployments">
+  <style>
+    ZgotmplZ
+  </style>
+</head>
+<body>
+  
+  <script>
+  
+  document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+    anchor.addEventListener('click', function(e) {
+      var target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        var navLinks = document.querySelector('.nav-links');
+        if (navLinks) navLinks.classList.remove('open');
+      }
+    });
+  });
+
+  
+  function copyCode(btn) {
+    var code = btn.closest('.code-block').querySelector('.code-body').textContent;
+    navigator.clipboard.writeText(code).then(function() {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    });
+  }
+</script>
+
+</body>
+</html>

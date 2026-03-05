@@ -66,55 +66,55 @@ func TestVerify_GitLabToken_Invalid(t *testing.T) {
 	}
 }
 
-func TestVerify_FastShipSecret_Valid(t *testing.T) {
+func TestVerify_DeployDeckSecret_Valid(t *testing.T) {
 	v := NewVerifier("my-secret")
 
 	method, err := v.Verify(map[string]string{
-		"X-FastShip-Secret": "my-secret",
+		"X-DeployDeck-Secret": "my-secret",
 	}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if method != AuthMethodFastShip {
-		t.Errorf("expected auth method 'fastship', got %q", method)
+	if method != AuthMethodDeployDeck {
+		t.Errorf("expected auth method 'deploydeck', got %q", method)
 	}
 }
 
-func TestVerify_FastShipSecret_Invalid(t *testing.T) {
+func TestVerify_DeployDeckSecret_Invalid(t *testing.T) {
 	v := NewVerifier("my-secret")
 
 	_, err := v.Verify(map[string]string{
-		"X-FastShip-Secret": "wrong-secret",
+		"X-DeployDeck-Secret": "wrong-secret",
 	}, nil)
 	if err == nil {
-		t.Fatal("expected error for invalid FastShip secret")
+		t.Fatal("expected error for invalid DeployDeck secret")
 	}
 }
 
-func TestVerify_FastShipHMAC_Valid(t *testing.T) {
+func TestVerify_DeployDeckHMAC_Valid(t *testing.T) {
 	v := NewVerifier("my-secret")
 	body := []byte(`{"image":"myapp:latest"}`)
 	sig := computeHMAC("my-secret", string(body))
 
 	method, err := v.Verify(map[string]string{
-		"X-FastShip-Secret": sig,
+		"X-DeployDeck-Secret": sig,
 	}, body)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if method != AuthMethodFastShip {
-		t.Errorf("expected auth method 'fastship', got %q", method)
+	if method != AuthMethodDeployDeck {
+		t.Errorf("expected auth method 'deploydeck', got %q", method)
 	}
 }
 
-func TestVerify_FastShipHMAC_Invalid(t *testing.T) {
+func TestVerify_DeployDeckHMAC_Invalid(t *testing.T) {
 	v := NewVerifier("my-secret")
 
 	_, err := v.Verify(map[string]string{
-		"X-FastShip-Secret": "sha256=invalid",
+		"X-DeployDeck-Secret": "sha256=invalid",
 	}, []byte(`body`))
 	if err == nil {
-		t.Fatal("expected error for invalid FastShip HMAC")
+		t.Fatal("expected error for invalid DeployDeck HMAC")
 	}
 }
 
@@ -128,14 +128,14 @@ func TestVerify_NoAuthHeader(t *testing.T) {
 }
 
 func TestVerify_GitHubPriority(t *testing.T) {
-	// When both GitHub and FastShip headers are present, GitHub should be checked first
+	// When both GitHub and DeployDeck headers are present, GitHub should be checked first
 	v := NewVerifier("my-secret")
 	body := []byte(`test`)
 	sig := computeHMAC("my-secret", string(body))
 
 	method, err := v.Verify(map[string]string{
 		"X-Hub-Signature-256": sig,
-		"X-FastShip-Secret":   "my-secret",
+		"X-DeployDeck-Secret": "my-secret",
 	}, body)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

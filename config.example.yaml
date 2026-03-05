@@ -1,4 +1,4 @@
-# FastShip Configuration Example
+# DeployDeck Configuration Example
 # Copy this file to config.yaml and customize for your setup
 
 server:
@@ -15,7 +15,7 @@ auth:
 
 # Rate limiting for the /api/deploy and /api/rollback endpoints.
 # Each remote IP is tracked independently using a token-bucket algorithm.
-# Overrides: FASTSHIP_RATE_LIMIT_RPM (requests_per_minute), FASTSHIP_RATE_LIMIT_BURST (burst_size)
+# Overrides: DEPLOYDECK_RATE_LIMIT_RPM (requests_per_minute), DEPLOYDECK_RATE_LIMIT_BURST (burst_size)
 rate_limit:
   enabled: true
   requests_per_minute: 10   # sustained requests allowed per IP per minute
@@ -66,11 +66,11 @@ services:
   # myapp-build:
   #   compose_file: "docker-compose.yml"          # relative to repo root
   #   service_name: "myapp"
-  #   working_dir: "/opt/fastship/builds/myapp"   # where repo is cloned
+  #   working_dir: "/opt/deploydeck/builds/myapp"   # where repo is cloned
   #   mode: "build"
   #   branch: "main"                              # only deploy pushes to this branch
   #   repo: "https://github.com/user/repo.git"    # fallback URL for manual triggers
-  #   clone_token: ""                              # for private repos (or use FASTSHIP_CLONE_TOKEN env var)
+  #   clone_token: ""                              # for private repos (or use DEPLOYDECK_CLONE_TOKEN env var)
   #   clone_token_file: "/run/secrets/clone_token" # alternative: read token from file (Docker secrets)
   #   timeout: 10m                                 # deployment timeout (default: 10m for build mode)
   #   prune_after_build: true                      # clean Docker build cache after successful deploy

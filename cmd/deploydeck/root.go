@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/esteban-ams/fastship/internal/config"
-	"github.com/esteban-ams/fastship/internal/deploy"
-	"github.com/esteban-ams/fastship/internal/ratelimit"
-	"github.com/esteban-ams/fastship/internal/webhook"
+	"github.com/esteban-ams/deploydeck/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/deploy"
+	"github.com/esteban-ams/deploydeck/internal/ratelimit"
+	"github.com/esteban-ams/deploydeck/internal/webhook"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
@@ -26,9 +26,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "fastship",
-	Short: "Lightweight webhook server for Docker Compose deployments",
-	Long:  "FastShip listens for webhooks from CI/CD pipelines and orchestrates Docker Compose deployments with health checking and rollback support.",
+	Use:   "deploydeck",
+	Short: "Your container deployment command center",
+	Long:  "DeployDeck listens for webhooks from CI/CD pipelines and orchestrates Docker Compose deployments with health checking and rollback support.",
 	RunE:  runServer,
 }
 
@@ -47,7 +47,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 		cfg.Server.Port = port
 	}
 
-	log.Printf("FastShip %s starting...", version)
+	log.Printf("DeployDeck %s starting...", version)
 	log.Printf("Configuration loaded from: %s", configPath)
 	log.Printf("Configured services: %d", len(cfg.Services))
 	for name := range cfg.Services {

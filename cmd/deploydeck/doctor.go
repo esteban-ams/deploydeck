@@ -6,7 +6,7 @@ import (
 	"os/exec"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/esteban-ams/fastship/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -41,8 +41,8 @@ func init() {
 
 func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	fmt.Println("FastShip Doctor")
-	fmt.Println("===============")
+	fmt.Println("DeployDeck Doctor")
+	fmt.Println("=================")
 	fmt.Println()
 
 	allOk := true

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/esteban-ams/fastship/internal/config"
-	"github.com/esteban-ams/fastship/internal/docker"
-	"github.com/esteban-ams/fastship/internal/git"
+	"github.com/esteban-ams/deploydeck/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/docker"
+	"github.com/esteban-ams/deploydeck/internal/git"
 )
 
 // Status represents the deployment status

@@ -1,0 +1,24 @@
+<script>
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+    anchor.addEventListener('click', function(e) {
+      var target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Close mobile nav if open
+        var navLinks = document.querySelector('.nav-links');
+        if (navLinks) navLinks.classList.remove('open');
+      }
+    });
+  });
+
+  // Copy code block
+  function copyCode(btn) {
+    var code = btn.closest('.code-block').querySelector('.code-body').textContent;
+    navigator.clipboard.writeText(code).then(function() {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    });
+  }
+</script>

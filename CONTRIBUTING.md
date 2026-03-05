@@ -1,6 +1,6 @@
-# Contributing to FastShip
+# Contributing to DeployDeck
 
-Thanks for your interest in contributing to FastShip! This guide will help you get started.
+Thanks for your interest in contributing to DeployDeck! This guide will help you get started.
 
 ## Development Setup
 
@@ -13,8 +13,8 @@ Thanks for your interest in contributing to FastShip! This guide will help you g
 ### Getting Started
 
 ```bash
-git clone https://github.com/esteban-ams/fastship.git
-cd fastship
+git clone https://github.com/esteban-ams/deploydeck.git
+cd deploydeck
 go mod download
 make build
 ```
@@ -37,13 +37,13 @@ make test
 
 ### Reporting Bugs
 
-- Use the [Bug Report](https://github.com/esteban-ams/fastship/issues/new?template=bug_report.yml) issue template
-- Include your FastShip version, OS, and deploy mode
+- Use the [Bug Report](https://github.com/esteban-ams/deploydeck/issues/new?template=bug_report.yml) issue template
+- Include your DeployDeck version, OS, and deploy mode
 - Provide relevant config (redact secrets) and logs
 
 ### Requesting Features
 
-- Use the [Feature Request](https://github.com/esteban-ams/fastship/issues/new?template=feature_request.yml) issue template
+- Use the [Feature Request](https://github.com/esteban-ams/deploydeck/issues/new?template=feature_request.yml) issue template
 - Explain the problem you're trying to solve
 - Suggest a solution if you have one
 
@@ -82,7 +82,7 @@ chore: update dependencies
 ## Project Structure
 
 ```
-cmd/fastship/        # Application entry point
+cmd/deploydeck/        # Application entry point
 internal/
   config/            # YAML config + env overrides
   webhook/           # HTTP handlers + auth + payload parsing

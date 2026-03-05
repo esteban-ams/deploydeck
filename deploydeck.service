@@ -1,5 +1,5 @@
 [Unit]
-Description=FastShip - Webhook-based Docker deployment server
+Description=DeployDeck - Your container deployment command center
 After=docker.service
 Requires=docker.service
 
@@ -7,8 +7,8 @@ Requires=docker.service
 Type=simple
 User=root
 Group=docker
-WorkingDirectory=/opt/fastship
-ExecStart=/usr/local/bin/fastship --config /opt/fastship/config.yaml
+WorkingDirectory=/opt/deploydeck
+ExecStart=/usr/local/bin/deploydeck --config /opt/deploydeck/config.yaml
 Restart=always
 RestartSec=5
 
@@ -19,10 +19,10 @@ PrivateTmp=true
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=fastship
+SyslogIdentifier=deploydeck
 
 # Environment
-Environment="FASTSHIP_LOG_LEVEL=info"
+Environment="DEPLOYDECK_LOG_LEVEL=info"
 
 [Install]
 WantedBy=multi-user.target

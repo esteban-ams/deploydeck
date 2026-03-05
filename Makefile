@@ -5,15 +5,15 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
 # Build the binary
 build:
-	go build $(LDFLAGS) -o fastship ./cmd/fastship
+	go build $(LDFLAGS) -o deploydeck ./cmd/deploydeck
 
 # Build for Linux (useful for deployment from macOS)
 build-linux:
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o fastship-linux-amd64 ./cmd/fastship
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o deploydeck-linux-amd64 ./cmd/deploydeck
 
 # Run the application
 run:
-	go run ./cmd/fastship --config config.yaml
+	go run ./cmd/deploydeck --config config.yaml
 
 # Run tests
 test:
@@ -21,7 +21,7 @@ test:
 
 # Clean build artifacts
 clean:
-	rm -f fastship fastship-linux-amd64
+	rm -f deploydeck deploydeck-linux-amd64
 
 # Install dependencies
 deps:
@@ -30,4 +30,4 @@ deps:
 
 # Install the binary to GOPATH/bin
 install:
-	go install $(LDFLAGS) ./cmd/fastship
+	go install $(LDFLAGS) ./cmd/deploydeck

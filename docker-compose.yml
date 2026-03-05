@@ -1,10 +1,10 @@
-# Docker Compose file for running FastShip
-# This is for deploying FastShip itself, not the services it manages
+# Docker Compose file for running DeployDeck
+# This is for deploying DeployDeck itself, not the services it manages
 
 services:
-  fastship:
-    image: ghcr.io/esteban-ams/fastship:latest
-    container_name: fastship
+  deploydeck:
+    image: ghcr.io/esteban-ams/deploydeck:latest
+    container_name: deploydeck
     restart: unless-stopped
     ports:
       - "9000:9000"
@@ -12,4 +12,4 @@ services:
       - ./config.yaml:/app/config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - FASTSHIP_LOG_LEVEL=info
+      - DEPLOYDECK_LOG_LEVEL=info

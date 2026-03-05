@@ -1,6 +1,6 @@
-# FastShip Quick Start Guide
+# DeployDeck Quick Start Guide
 
-Get FastShip running in 5 minutes.
+Get DeployDeck running in 5 minutes.
 
 ## Prerequisites
 
@@ -13,10 +13,10 @@ Get FastShip running in 5 minutes.
 ### 1. Clone and Build
 
 ```bash
-git clone https://github.com/esteban-ams/fastship.git
-cd fastship
+git clone https://github.com/esteban-ams/deploydeck.git
+cd deploydeck
 go mod download
-go build -o fastship ./cmd/fastship
+go build -o deploydeck ./cmd/deploydeck
 ```
 
 ### 2. Create Configuration
@@ -44,10 +44,10 @@ services:
       url: "http://localhost:8080/health"
 ```
 
-### 3. Run FastShip
+### 3. Run DeployDeck
 
 ```bash
-./fastship --config config.yaml
+./deploydeck --config config.yaml
 ```
 
 ### 4. Test It
@@ -58,7 +58,7 @@ curl http://localhost:9000/api/health
 
 # Trigger a deployment (pull mode)
 curl -X POST http://localhost:9000/api/deploy/myapp \
-  -H "X-FastShip-Secret: my-super-secret-key" \
+  -H "X-DeployDeck-Secret: my-super-secret-key" \
   -H "Content-Type: application/json" \
   -d '{"image": "your-image:latest"}'
 ```
@@ -68,15 +68,15 @@ curl -X POST http://localhost:9000/api/deploy/myapp \
 ### 1. Create Configuration
 
 ```bash
-mkdir fastship
-cd fastship
-wget https://raw.githubusercontent.com/esteban-ams/fastship/main/config.example.yaml -O config.yaml
-wget https://raw.githubusercontent.com/esteban-ams/fastship/main/docker-compose.yml
+mkdir deploydeck
+cd deploydeck
+wget https://raw.githubusercontent.com/esteban-ams/deploydeck/main/config.example.yaml -O config.yaml
+wget https://raw.githubusercontent.com/esteban-ams/deploydeck/main/docker-compose.yml
 ```
 
 Edit `config.yaml` with your services.
 
-### 2. Start FastShip
+### 2. Start DeployDeck
 
 ```bash
 docker compose up -d
@@ -93,33 +93,33 @@ docker compose logs -f
 ### 1. Download Binary
 
 ```bash
-curl -L https://github.com/esteban-ams/fastship/releases/latest/download/fastship-linux-amd64 -o /usr/local/bin/fastship
-chmod +x /usr/local/bin/fastship
+curl -L https://github.com/esteban-ams/deploydeck/releases/latest/download/deploydeck-linux-amd64 -o /usr/local/bin/deploydeck
+chmod +x /usr/local/bin/deploydeck
 ```
 
 ### 2. Setup Configuration
 
 ```bash
-mkdir -p /opt/fastship
-cd /opt/fastship
-wget https://raw.githubusercontent.com/esteban-ams/fastship/main/config.example.yaml -O config.yaml
+mkdir -p /opt/deploydeck
+cd /opt/deploydeck
+wget https://raw.githubusercontent.com/esteban-ams/deploydeck/main/config.example.yaml -O config.yaml
 # Edit config.yaml
 ```
 
 ### 3. Install Systemd Service
 
 ```bash
-wget https://raw.githubusercontent.com/esteban-ams/fastship/main/fastship.service -O /etc/systemd/system/fastship.service
+wget https://raw.githubusercontent.com/esteban-ams/deploydeck/main/deploydeck.service -O /etc/systemd/system/deploydeck.service
 systemctl daemon-reload
-systemctl enable fastship
-systemctl start fastship
+systemctl enable deploydeck
+systemctl start deploydeck
 ```
 
 ### 4. Check Status
 
 ```bash
-systemctl status fastship
-journalctl -u fastship -f
+systemctl status deploydeck
+journalctl -u deploydeck -f
 ```
 
 ## Build Mode Setup
@@ -161,7 +161,7 @@ services:
 Or set the environment variable:
 
 ```bash
-export FASTSHIP_CLONE_TOKEN=ghp_your_github_token
+export DEPLOYDECK_CLONE_TOKEN=ghp_your_github_token
 ```
 
 ### 3. Set Up GitHub Webhook
@@ -185,7 +185,7 @@ Add to your workflow:
 - name: Deploy to production
   run: |
     curl -X POST https://your-server.com:9000/api/deploy/myapp \
-      -H "X-FastShip-Secret: ${{ secrets.FASTSHIP_SECRET }}" \
+      -H "X-DeployDeck-Secret: ${{ secrets.DEPLOYDECK_SECRET }}" \
       -H "Content-Type: application/json" \
       -d '{"image": "ghcr.io/${{ github.repository }}:${{ github.sha }}"}'
 ```
@@ -200,7 +200,7 @@ deploy:
   script:
     - |
       curl -X POST https://your-server.com:9000/api/deploy/myapp \
-        -H "X-GitLab-Token: $FASTSHIP_SECRET" \
+        -H "X-GitLab-Token: $DEPLOYDECK_SECRET" \
         -H "Content-Type: application/json" \
         -d '{"image": "registry.gitlab.com/$CI_PROJECT_PATH:$CI_COMMIT_SHA"}'
 ```
@@ -216,8 +216,8 @@ openssl rand -hex 32
 ### 2. Use HTTPS in Production
 
 Either:
-- Enable TLS in FastShip config
-- Put FastShip behind a reverse proxy (Traefik, nginx)
+- Enable TLS in DeployDeck config
+- Put DeployDeck behind a reverse proxy (Traefik, nginx)
 
 ### 3. Restrict Access
 
@@ -235,7 +235,7 @@ Check your config.yaml — the service name in the URL must match a key in the `
 ### "authentication failed"
 
 - Verify the secret matches the header value
-- Check for typos in the header name (`X-FastShip-Secret`)
+- Check for typos in the header name (`X-DeployDeck-Secret`)
 
 ### "deployment failed at pull phase"
 

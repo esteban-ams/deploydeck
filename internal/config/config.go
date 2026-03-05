@@ -18,7 +18,7 @@ const (
 	DeployModeBuild DeployMode = "build"
 )
 
-// Config represents the complete FastShip configuration
+// Config represents the complete DeployDeck configuration
 type Config struct {
 	Server    ServerConfig             `yaml:"server"`
 	Auth      AuthConfig               `yaml:"auth"`
@@ -130,30 +130,30 @@ func Load(configPath string) (*Config, error) {
 
 // applyEnvOverrides applies environment variable overrides
 func applyEnvOverrides(cfg *Config) {
-	if port := os.Getenv("FASTSHIP_PORT"); port != "" {
+	if port := os.Getenv("DEPLOYDECK_PORT"); port != "" {
 		fmt.Sscanf(port, "%d", &cfg.Server.Port)
 	}
-	if host := os.Getenv("FASTSHIP_HOST"); host != "" {
+	if host := os.Getenv("DEPLOYDECK_HOST"); host != "" {
 		cfg.Server.Host = host
 	}
-	if secret := os.Getenv("FASTSHIP_WEBHOOK_SECRET"); secret != "" {
+	if secret := os.Getenv("DEPLOYDECK_WEBHOOK_SECRET"); secret != "" {
 		cfg.Auth.WebhookSecret = secret
 	}
-	if logLevel := os.Getenv("FASTSHIP_LOG_LEVEL"); logLevel != "" {
+	if logLevel := os.Getenv("DEPLOYDECK_LOG_LEVEL"); logLevel != "" {
 		cfg.Logging.Level = logLevel
 	}
-	if rps := os.Getenv("FASTSHIP_RATE_LIMIT_RPM"); rps != "" {
+	if rps := os.Getenv("DEPLOYDECK_RATE_LIMIT_RPM"); rps != "" {
 		fmt.Sscanf(rps, "%d", &cfg.RateLimit.RequestsPerMinute)
 	}
-	if burst := os.Getenv("FASTSHIP_RATE_LIMIT_BURST"); burst != "" {
+	if burst := os.Getenv("DEPLOYDECK_RATE_LIMIT_BURST"); burst != "" {
 		fmt.Sscanf(burst, "%d", &cfg.RateLimit.BurstSize)
 	}
 }
 
 // resolveTokenFiles resolves clone tokens from files and env var fallback.
-// Priority: clone_token (YAML) > clone_token_file > FASTSHIP_CLONE_TOKEN (env)
+// Priority: clone_token (YAML) > clone_token_file > DEPLOYDECK_CLONE_TOKEN (env)
 func resolveTokenFiles(cfg *Config) {
-	envToken := os.Getenv("FASTSHIP_CLONE_TOKEN")
+	envToken := os.Getenv("DEPLOYDECK_CLONE_TOKEN")
 
 	for name, svc := range cfg.Services {
 		if svc.CloneToken != "" {
@@ -164,7 +164,7 @@ func resolveTokenFiles(cfg *Config) {
 		if svc.CloneTokenFile != "" {
 			data, err := os.ReadFile(svc.CloneTokenFile)
 			if err != nil {
-				log.Printf("Warning: service %q: cannot read clone_token_file %q: %v (falling back to FASTSHIP_CLONE_TOKEN env var)", name, svc.CloneTokenFile, err)
+				log.Printf("Warning: service %q: cannot read clone_token_file %q: %v (falling back to DEPLOYDECK_CLONE_TOKEN env var)", name, svc.CloneTokenFile, err)
 			} else if token := strings.TrimSpace(string(data)); token != "" {
 				svc.CloneToken = token
 				cfg.Services[name] = svc
@@ -248,7 +248,7 @@ func applyDefaults(cfg *Config) {
 // validate checks that the configuration is valid
 func validate(cfg *Config) error {
 	if cfg.Auth.WebhookSecret == "" {
-		return fmt.Errorf("auth.webhook_secret is required: set it in config.yaml or via the FASTSHIP_WEBHOOK_SECRET environment variable")
+		return fmt.Errorf("auth.webhook_secret is required: set it in config.yaml or via the DEPLOYDECK_WEBHOOK_SECRET environment variable")
 	}
 
 	if len(cfg.Services) == 0 {

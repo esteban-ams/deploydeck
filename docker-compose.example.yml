@@ -1,5 +1,5 @@
-# Example docker-compose.yml for testing FastShip
-# This represents a service that FastShip would deploy
+# Example docker-compose.yml for testing DeployDeck
+# This represents a service that DeployDeck would deploy
 
 services:
   myapp:

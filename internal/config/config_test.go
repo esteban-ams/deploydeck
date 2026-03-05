@@ -251,28 +251,28 @@ func TestEnvOverrides(t *testing.T) {
 	}{
 		{
 			name:     "port",
-			envKey:   "FASTSHIP_PORT",
+			envKey:   "DEPLOYDECK_PORT",
 			envValue: "8080",
 			check:    func(c *Config) bool { return c.Server.Port == 8080 },
 			desc:     "port should be 8080",
 		},
 		{
 			name:     "host",
-			envKey:   "FASTSHIP_HOST",
+			envKey:   "DEPLOYDECK_HOST",
 			envValue: "127.0.0.1",
 			check:    func(c *Config) bool { return c.Server.Host == "127.0.0.1" },
 			desc:     "host should be 127.0.0.1",
 		},
 		{
 			name:     "webhook_secret",
-			envKey:   "FASTSHIP_WEBHOOK_SECRET",
+			envKey:   "DEPLOYDECK_WEBHOOK_SECRET",
 			envValue: "env-secret",
 			check:    func(c *Config) bool { return c.Auth.WebhookSecret == "env-secret" },
 			desc:     "webhook_secret should be env-secret",
 		},
 		{
 			name:     "log_level",
-			envKey:   "FASTSHIP_LOG_LEVEL",
+			envKey:   "DEPLOYDECK_LOG_LEVEL",
 			envValue: "debug",
 			check:    func(c *Config) bool { return c.Logging.Level == "debug" },
 			desc:     "log_level should be debug",
@@ -306,8 +306,8 @@ services:
     service_name: "myapp"
     mode: "build"
 `)
-	os.Setenv("FASTSHIP_CLONE_TOKEN", "env-token")
-	defer os.Unsetenv("FASTSHIP_CLONE_TOKEN")
+	os.Setenv("DEPLOYDECK_CLONE_TOKEN", "env-token")
+	defer os.Unsetenv("DEPLOYDECK_CLONE_TOKEN")
 
 	cfg, err := Load(path)
 	if err != nil {
@@ -330,8 +330,8 @@ services:
     mode: "build"
     clone_token: "explicit-token"
 `)
-	os.Setenv("FASTSHIP_CLONE_TOKEN", "env-token")
-	defer os.Unsetenv("FASTSHIP_CLONE_TOKEN")
+	os.Setenv("DEPLOYDECK_CLONE_TOKEN", "env-token")
+	defer os.Unsetenv("DEPLOYDECK_CLONE_TOKEN")
 
 	cfg, err := Load(path)
 	if err != nil {
@@ -362,7 +362,7 @@ services:
 	path := writeConfigFile(t, configContent)
 
 	// Unset env var to ensure file takes precedence
-	os.Unsetenv("FASTSHIP_CLONE_TOKEN")
+	os.Unsetenv("DEPLOYDECK_CLONE_TOKEN")
 
 	cfg, err := Load(path)
 	if err != nil {

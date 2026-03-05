@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/esteban-ams/fastship/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/config"
 )
 
 // HealthChecker performs HTTP health checks on deployed services

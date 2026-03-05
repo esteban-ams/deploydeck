@@ -1,13 +1,13 @@
 name: Bug Report
-description: Report a bug in FastShip
+description: Report a bug in DeployDeck
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: input
     id: version
     attributes:
-      label: FastShip Version
-      description: Output of `fastship --version`
+      label: DeployDeck Version
+      description: Output of `deploydeck --version`
       placeholder: "v0.1.0"
     validations:
       required: true

@@ -12,9 +12,9 @@ import (
 type AuthMethod string
 
 const (
-	AuthMethodGitHub   AuthMethod = "github"    // X-Hub-Signature-256
-	AuthMethodGitLab   AuthMethod = "gitlab"    // X-GitLab-Token
-	AuthMethodFastShip AuthMethod = "fastship"  // X-FastShip-Secret
+	AuthMethodGitHub     AuthMethod = "github"      // X-Hub-Signature-256
+	AuthMethodGitLab     AuthMethod = "gitlab"      // X-GitLab-Token
+	AuthMethodDeployDeck AuthMethod = "deploydeck"  // X-DeployDeck-Secret
 )
 
 // Verifier handles webhook authentication
@@ -31,7 +31,7 @@ func NewVerifier(secret string) *Verifier {
 // It supports multiple authentication methods:
 // - GitHub: X-Hub-Signature-256 with HMAC-SHA256
 // - GitLab: X-GitLab-Token with simple token comparison
-// - FastShip: X-FastShip-Secret with either HMAC or simple secret
+// - DeployDeck: X-DeployDeck-Secret with either HMAC or simple secret
 func (v *Verifier) Verify(headers map[string]string, body []byte) (AuthMethod, error) {
 	// Try GitHub-style HMAC signature
 	if sig := headers["X-Hub-Signature-256"]; sig != "" {
@@ -39,7 +39,7 @@ func (v *Verifier) Verify(headers map[string]string, body []byte) (AuthMethod, e
 			return AuthMethodGitHub, nil
 		}
 		return "", fmt.Errorf("GitHub HMAC signature verification failed (X-Hub-Signature-256): " +
-			"ensure the webhook secret in FastShip matches the secret configured in your GitHub repository settings")
+			"ensure the webhook secret in DeployDeck matches the secret configured in your GitHub repository settings")
 	}
 
 	// Try GitLab token
@@ -51,27 +51,27 @@ func (v *Verifier) Verify(headers map[string]string, body []byte) (AuthMethod, e
 			"ensure the token in your GitLab webhook settings matches auth.webhook_secret in config.yaml")
 	}
 
-	// Try FastShip secret (supports both HMAC and simple secret)
-	if secret := headers["X-FastShip-Secret"]; secret != "" {
+	// Try DeployDeck secret (supports both HMAC and simple secret)
+	if secret := headers["X-DeployDeck-Secret"]; secret != "" {
 		// Check if it's an HMAC signature (starts with "sha256=")
 		if strings.HasPrefix(secret, "sha256=") {
 			if v.verifyHMAC(body, secret) {
-				return AuthMethodFastShip, nil
+				return AuthMethodDeployDeck, nil
 			}
-			return "", fmt.Errorf("FastShip HMAC signature verification failed (X-FastShip-Secret): " +
+			return "", fmt.Errorf("DeployDeck HMAC signature verification failed (X-DeployDeck-Secret): " +
 				"the sha256= signature does not match; ensure the request body was not modified in transit " +
 				"and the signing secret matches auth.webhook_secret in config.yaml")
 		}
 		// Simple secret comparison
 		if secret == v.secret {
-			return AuthMethodFastShip, nil
+			return AuthMethodDeployDeck, nil
 		}
-		return "", fmt.Errorf("FastShip secret verification failed (X-FastShip-Secret): " +
+		return "", fmt.Errorf("DeployDeck secret verification failed (X-DeployDeck-Secret): " +
 			"the provided secret does not match auth.webhook_secret in config.yaml")
 	}
 
 	return "", fmt.Errorf("no authentication header found: provide one of " +
-		"X-Hub-Signature-256 (GitHub), X-GitLab-Token (GitLab), or X-FastShip-Secret (FastShip)")
+		"X-Hub-Signature-256 (GitHub), X-GitLab-Token (GitLab), or X-DeployDeck-Secret (DeployDeck)")
 }
 
 // verifyHMAC verifies an HMAC-SHA256 signature

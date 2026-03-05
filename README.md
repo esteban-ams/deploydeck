@@ -1,9 +1,9 @@
-# FastShip
+# DeployDeck
 
-A lightweight webhook server for automated Docker Compose deployments. Deploy on push. No polling. No complexity.
+Your container deployment command center. Deploy on push. No polling. No complexity.
 
-[![Build](https://github.com/esteban-ams/fastship/actions/workflows/build.yml/badge.svg)](https://github.com/esteban-ams/fastship/actions/workflows/build.yml)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/esteban-ams/fastship)](https://go.dev/)
+[![Build](https://github.com/esteban-ams/deploydeck/actions/workflows/build.yml/badge.svg)](https://github.com/esteban-ams/deploydeck/actions/workflows/build.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/esteban-ams/deploydeck)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## The Problem
@@ -27,22 +27,22 @@ Developer  ──►  GitHub Actions  ──►  Registry
 
 ## The Solution
 
-FastShip runs on your server and listens for webhooks. It supports two deployment modes:
+DeployDeck runs on your server and listens for webhooks. It supports two deployment modes:
 
-**Pull Mode** — Your CI/CD builds the image, pushes to a registry, then calls FastShip:
+**Pull Mode** — Your CI/CD builds the image, pushes to a registry, then calls DeployDeck:
 
 ```
-GitHub Actions ──► build + push image ──► POST /api/deploy/myapp ──► FastShip
+GitHub Actions ──► build + push image ──► POST /api/deploy/myapp ──► DeployDeck
                                                                         │
                                                               docker compose pull
                                                               docker compose up -d
                                                               health check ✓
 ```
 
-**Build Mode** — FastShip receives a push webhook, clones the repo, and builds on the server:
+**Build Mode** — DeployDeck receives a push webhook, clones the repo, and builds on the server:
 
 ```
-git push ──► GitHub webhook ──► FastShip ──► git clone
+git push ──► GitHub webhook ──► DeployDeck ──► git clone
                                                │
                                       docker compose build
                                       docker compose up -d
@@ -52,7 +52,7 @@ git push ──► GitHub webhook ──► FastShip ──► git clone
 ## Features
 
 - **Two deploy modes**: Pull pre-built images or build from source
-- **Webhook auth**: HMAC-SHA256 (GitHub), token (GitLab), shared secret (FastShip)
+- **Webhook auth**: HMAC-SHA256 (GitHub), token (GitLab), shared secret (DeployDeck)
 - **Health checks**: Configurable timeout, interval, and retries
 - **Automatic rollback**: Image tagging snapshots before each deploy; restores on failure
 - **Branch filtering**: Only deploy pushes to the configured branch (build mode)
@@ -66,8 +66,8 @@ git push ──► GitHub webhook ──► FastShip ──► git clone
 ### 1. Download
 
 ```bash
-curl -L https://github.com/esteban-ams/fastship/releases/latest/download/fastship-linux-amd64 -o fastship
-chmod +x fastship
+curl -L https://github.com/esteban-ams/deploydeck/releases/latest/download/deploydeck-linux-amd64 -o deploydeck
+chmod +x deploydeck
 ```
 
 ### 2. Configure
@@ -94,7 +94,7 @@ services:
 ### 3. Run
 
 ```bash
-./fastship --config config.yaml
+./deploydeck --config config.yaml
 ```
 
 ### 4. Trigger from CI/CD
@@ -104,7 +104,7 @@ services:
 - name: Deploy
   run: |
     curl -X POST https://deploy.yourdomain.com/api/deploy/myapp \
-      -H "X-FastShip-Secret: ${{ secrets.FASTSHIP_SECRET }}" \
+      -H "X-DeployDeck-Secret: ${{ secrets.DEPLOYDECK_SECRET }}" \
       -H "Content-Type: application/json" \
       -d '{"image": "ghcr.io/user/myapp:latest"}'
 ```
@@ -115,7 +115,7 @@ deploy:
   script:
     - |
       curl -X POST https://deploy.yourdomain.com/api/deploy/myapp \
-        -H "X-GitLab-Token: $FASTSHIP_SECRET" \
+        -H "X-GitLab-Token: $DEPLOYDECK_SECRET" \
         -H "Content-Type: application/json" \
         -d '{"image": "registry.gitlab.com/user/myapp:latest"}'
 ```
@@ -166,7 +166,7 @@ Trigger a deployment. Requires authentication header.
 **Headers** (use one):
 - `X-Hub-Signature-256: sha256=<hmac>` (GitHub)
 - `X-GitLab-Token: <secret>` (GitLab)
-- `X-FastShip-Secret: <secret>` (FastShip)
+- `X-DeployDeck-Secret: <secret>` (DeployDeck)
 
 **Body (pull mode):**
 ```json
@@ -285,11 +285,11 @@ Environment variables override config file values:
 
 | Variable | Overrides | Example |
 |----------|-----------|---------|
-| `FASTSHIP_PORT` | `server.port` | `9000` |
-| `FASTSHIP_HOST` | `server.host` | `0.0.0.0` |
-| `FASTSHIP_WEBHOOK_SECRET` | `auth.webhook_secret` | `abc123...` |
-| `FASTSHIP_LOG_LEVEL` | `logging.level` | `debug` |
-| `FASTSHIP_CLONE_TOKEN` | `clone_token` (all services) | `ghp_xxx...` |
+| `DEPLOYDECK_PORT` | `server.port` | `9000` |
+| `DEPLOYDECK_HOST` | `server.host` | `0.0.0.0` |
+| `DEPLOYDECK_WEBHOOK_SECRET` | `auth.webhook_secret` | `abc123...` |
+| `DEPLOYDECK_LOG_LEVEL` | `logging.level` | `debug` |
+| `DEPLOYDECK_CLONE_TOKEN` | `clone_token` (all services) | `ghp_xxx...` |
 
 **Precedence**: CLI flags > environment variables > config.yaml > defaults
 
@@ -298,9 +298,9 @@ Environment variables override config file values:
 ```yaml
 # docker-compose.yml
 services:
-  fastship:
-    image: ghcr.io/esteban-ams/fastship:latest
-    container_name: fastship
+  deploydeck:
+    image: ghcr.io/esteban-ams/deploydeck:latest
+    container_name: deploydeck
     restart: unless-stopped
     ports:
       - "9000:9000"
@@ -308,23 +308,23 @@ services:
       - ./config.yaml:/app/config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - FASTSHIP_LOG_LEVEL=info
+      - DEPLOYDECK_LOG_LEVEL=info
 ```
 
-**Important:** FastShip needs access to the Docker socket to manage containers.
+**Important:** DeployDeck needs access to the Docker socket to manage containers.
 
 ## Architecture
 
 ```
-fastship/
-├── cmd/fastship/
+deploydeck/
+├── cmd/deploydeck/
 │   └── main.go                  # Entry point, CLI flags, server setup
 ├── internal/
 │   ├── config/
 │   │   └── config.go            # YAML parsing, env overrides, validation
 │   ├── webhook/
 │   │   ├── handler.go           # HTTP handlers (deploy, rollback, status, health)
-│   │   ├── verify.go            # Auth verification (GitHub, GitLab, FastShip)
+│   │   ├── verify.go            # Auth verification (GitHub, GitLab, DeployDeck)
 │   │   └── payload.go           # Push event parsing (GitHub/GitLab)
 │   ├── deploy/
 │   │   ├── deploy.go            # Deployment orchestration, rollback, state machine
@@ -363,7 +363,7 @@ Three methods supported (use one per request):
 |--------|--------|--------|
 | GitHub | `X-Hub-Signature-256` | `sha256=<hmac-sha256>` |
 | GitLab | `X-GitLab-Token` | Plain token string |
-| FastShip | `X-FastShip-Secret` | Plain string or `sha256=<hmac>` |
+| DeployDeck | `X-DeployDeck-Secret` | Plain string or `sha256=<hmac>` |
 
 All methods use constant-time comparison to prevent timing attacks.
 
@@ -373,7 +373,7 @@ Clone tokens for private repos (build mode) can be provided via:
 
 1. `clone_token` in config (least secure)
 2. `clone_token_file` pointing to a file (Docker Secrets pattern, recommended)
-3. `FASTSHIP_CLONE_TOKEN` environment variable (fallback)
+3. `DEPLOYDECK_CLONE_TOKEN` environment variable (fallback)
 
 **Priority**: config value > file > env var
 
@@ -385,7 +385,7 @@ Token injection is automatic per provider:
 
 - Run behind a reverse proxy (Traefik, nginx) with HTTPS
 - Use strong, randomly generated secrets: `openssl rand -hex 32`
-- FastShip requires Docker socket access (runs as root or docker group)
+- DeployDeck requires Docker socket access (runs as root or docker group)
 
 ## Development
 
@@ -410,7 +410,7 @@ make clean          # Remove build artifacts
 ```bash
 cp config.example.yaml config.yaml
 # Edit config.yaml
-go run ./cmd/fastship --config config.yaml
+go run ./cmd/deploydeck --config config.yaml
 ```
 
 ### Test webhook

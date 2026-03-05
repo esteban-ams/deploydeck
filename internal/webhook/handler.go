@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/esteban-ams/fastship/internal/config"
-	"github.com/esteban-ams/fastship/internal/deploy"
+	"github.com/esteban-ams/deploydeck/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/deploy"
 	"github.com/labstack/echo/v4"
 )
 
@@ -51,7 +51,7 @@ func authHeaders(c echo.Context) map[string]string {
 	return map[string]string{
 		"X-Hub-Signature-256": c.Request().Header.Get("X-Hub-Signature-256"),
 		"X-GitLab-Token":      c.Request().Header.Get("X-GitLab-Token"),
-		"X-FastShip-Secret":   c.Request().Header.Get("X-FastShip-Secret"),
+		"X-DeployDeck-Secret": c.Request().Header.Get("X-DeployDeck-Secret"),
 	}
 }
 
@@ -94,7 +94,7 @@ func (h *Handler) HandleDeploy(c echo.Context) error {
 			pushEvent, _ = ParseGitHubPush(body)
 		case AuthMethodGitLab:
 			pushEvent, _ = ParseGitLabPush(body)
-		case AuthMethodFastShip:
+		case AuthMethodDeployDeck:
 			// Try GitHub format first, then GitLab
 			pushEvent, _ = ParseGitHubPush(body)
 			if pushEvent == nil {
@@ -217,7 +217,7 @@ type DeploymentInfo struct {
 // HandleListDeployments handles GET /api/deployments
 func (h *Handler) HandleListDeployments(c echo.Context) error {
 	// GET requests carry no body; pass nil so HMAC methods fall through to
-	// token-based checks (X-GitLab-Token or X-FastShip-Secret).
+	// token-based checks (X-GitLab-Token or X-DeployDeck-Secret).
 	if _, err := h.verifier.Verify(authHeaders(c), nil); err != nil {
 		log.Printf("Authentication failed for GET /api/deployments: %v", err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{

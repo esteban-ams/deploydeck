@@ -1,8 +1,8 @@
 version: 2
 
 builds:
-  - main: ./cmd/fastship
-    binary: fastship
+  - main: ./cmd/deploydeck
+    binary: deploydeck
     env:
       - CGO_ENABLED=0
     goos:
@@ -24,7 +24,7 @@ archives:
       - LICENSE
       - README.md
       - config.example.yaml
-      - fastship.service
+      - deploydeck.service
 
 checksum:
   name_template: checksums.txt
@@ -40,4 +40,4 @@ changelog:
 release:
   github:
     owner: esteban-ams
-    name: fastship
+    name: deploydeck

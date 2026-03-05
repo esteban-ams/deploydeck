@@ -1,0 +1,8 @@
+baseURL = 'https://deploydeck.dev/'
+languageCode = 'en-us'
+title = 'DeployDeck - Container Deployment Command Center'
+theme = 'deploydeck'
+
+[params]
+  description = "Lightweight webhook server that automates Docker Compose deployments"
+  githubURL = "https://github.com/esteban-ams/deploydeck"

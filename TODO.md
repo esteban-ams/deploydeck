@@ -1,4 +1,4 @@
-# FastShip TODO
+# DeployDeck TODO
 
 > Ver [ROADMAP.md](./ROADMAP.md) para el plan completo y timeline.
 > Ver [docs/CASE_STUDY.md](./docs/CASE_STUDY.md) para el caso de exito en produccion.
@@ -34,7 +34,7 @@
 ---
 
 ## Phase A: DX & Community Ready (PRIORITY #1)
-> Primera impresion importa. Hacer FastShip facil de instalar y usar.
+> Primera impresion importa. Hacer DeployDeck facil de instalar y usar.
 
 ### Installer
 - [ ] `install.sh` script para curl | bash
@@ -44,8 +44,8 @@
 
 ### CLI Improvements
 - [ ] Colores con lipgloss o similar
-- [ ] `fastship doctor` - verifica docker, config, permisos
-- [ ] `fastship status` - tabla bonita con estado de servicios
+- [ ] `deploydeck doctor` - verifica docker, config, permisos
+- [ ] `deploydeck status` - tabla bonita con estado de servicios
 - [ ] Mensajes de error humanos (no stack traces)
 - [ ] Flag `--json` para output parseable
 

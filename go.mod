@@ -1,4 +1,4 @@
-module github.com/esteban-ams/fastship
+module github.com/esteban-ams/deploydeck
 
 go 1.22
 

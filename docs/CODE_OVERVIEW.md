@@ -1,12 +1,12 @@
-# FastShip Code Overview
+# DeployDeck Code Overview
 
-A guided tour through the FastShip codebase for developers.
+A guided tour through the DeployDeck codebase for developers.
 
 ## Project Structure
 
 ```
-fastship/
-├── cmd/fastship/
+deploydeck/
+├── cmd/deploydeck/
 │   └── main.go                 # Application entry point (87 lines)
 ├── internal/
 │   ├── config/
@@ -29,9 +29,9 @@ fastship/
 │   ├── CASE_STUDY.md           # Production case study
 │   └── CODE_OVERVIEW.md        # This file
 ├── config.example.yaml         # Example configuration
-├── docker-compose.yml          # FastShip deployment
+├── docker-compose.yml          # DeployDeck deployment
 ├── docker-compose.example.yml  # Example service
-├── fastship.service            # Systemd service
+├── deploydeck.service            # Systemd service
 ├── Dockerfile                  # Container image
 ├── Makefile                    # Build commands
 ├── go.mod                      # Go dependencies
@@ -114,7 +114,7 @@ fastship/
 
 ## Key Components Explained
 
-### 1. cmd/fastship/main.go
+### 1. cmd/deploydeck/main.go
 
 **Purpose**: Application entry point
 
@@ -171,7 +171,7 @@ services:   # Deployable services
 
 **Key Functions**:
 - `Load(path string)` - Main entry point
-- `applyEnvOverrides()` - FASTSHIP_* env vars
+- `applyEnvOverrides()` - DEPLOYDECK_* env vars
 - `applyDefaults()` - Smart defaults (5m pull, 10m build, mode "pull", branch "main")
 - `validate()` - Configuration validation
 - `resolveTokenFiles()` - Read tokens from files (Docker Secrets pattern)
@@ -189,7 +189,7 @@ services:   # Deployable services
 **Supported Auth Methods** (checked in order):
 1. **GitHub Style**: `X-Hub-Signature-256: sha256=...` (HMAC-SHA256)
 2. **GitLab Style**: `X-GitLab-Token: secret` (constant-time comparison)
-3. **FastShip Style**: `X-FastShip-Secret: secret` or `sha256=...` (both supported)
+3. **DeployDeck Style**: `X-DeployDeck-Secret: secret` or `sha256=...` (both supported)
 
 **Key Code**:
 ```go
@@ -202,7 +202,7 @@ func (v *Verifier) Verify(headers http.Header, body []byte) (bool, AuthMethod) {
     if token := headers.Get("X-Gitlab-Token"); token != "" {
         return v.verifySecret(token), AuthGitLab
     }
-    // Then FastShip secret (HMAC or plain)
+    // Then DeployDeck secret (HMAC or plain)
     if secret := headers.Get("X-Fastship-Secret"); secret != "" { ... }
 }
 ```
@@ -421,7 +421,7 @@ curl http://localhost:9000/api/health
 
 # Trigger pull mode deploy
 curl -X POST http://localhost:9000/api/deploy/myapp \
-  -H "X-FastShip-Secret: secret" \
+  -H "X-DeployDeck-Secret: secret" \
   -H "Content-Type: application/json" \
   -d '{"image": "myapp:latest"}'
 ```
@@ -437,7 +437,7 @@ func (h *Handler) HandleNewEndpoint(c echo.Context) error {
 }
 ```
 
-2. Register route in `cmd/fastship/main.go`:
+2. Register route in `cmd/deploydeck/main.go`:
 ```go
 api.GET("/new-endpoint", handler.HandleNewEndpoint)
 ```

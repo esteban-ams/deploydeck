@@ -16,7 +16,7 @@ RUN go mod tidy
 
 # Build the binary
 ARG VERSION=dev
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-X main.version=${VERSION}" -o fastship ./cmd/fastship
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-X main.version=${VERSION}" -o deploydeck ./cmd/deploydeck
 
 # Runtime stage
 FROM alpine:latest
@@ -31,7 +31,7 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /build/fastship .
+COPY --from=builder /build/deploydeck .
 
 # Expose port
 EXPOSE 9000
@@ -40,5 +40,5 @@ EXPOSE 9000
 # In production, ensure the user is in the docker group on the host
 USER root
 
-ENTRYPOINT ["/app/fastship"]
+ENTRYPOINT ["/app/deploydeck"]
 CMD ["--config", "/app/config.yaml"]

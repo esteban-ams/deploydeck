@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Core (Phase 1)
 - HTTP webhook server built with Echo v4
-- Webhook authentication: GitHub HMAC-SHA256, GitLab token, FastShip secret
+- Webhook authentication: GitHub HMAC-SHA256, GitLab token, DeployDeck secret
 - Docker Compose integration via `os/exec` (pull + up)
 - Configurable health checks (URL, timeout, interval, retries)
 - Automatic rollback on health check failure
@@ -47,5 +47,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Token injection for private repos (GitHub, GitLab, generic)
 - Auto-prune Docker build cache (`prune_after_build` option)
 
-[Unreleased]: https://github.com/esteban-ams/fastship/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/esteban-ams/fastship/releases/tag/v0.1.0
+[Unreleased]: https://github.com/esteban-ams/deploydeck/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/esteban-ams/deploydeck/releases/tag/v0.1.0

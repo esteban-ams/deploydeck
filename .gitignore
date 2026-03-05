@@ -1,6 +1,6 @@
-# Binaries (only in root, not cmd/fastship/)
-/fastship
-/fastship-*
+# Binaries (only in root, not cmd/deploydeck/)
+/deploydeck
+/deploydeck-*
 *.exe
 *.dll
 *.so

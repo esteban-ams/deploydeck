@@ -1,10 +1,10 @@
-# FastShip Roadmap
+# DeployDeck Roadmap
 
-> Plan de desarrollo para convertir FastShip en un proyecto open source maduro y atractivo.
+> Plan de desarrollo para convertir DeployDeck en un proyecto open source maduro y atractivo.
 
 ## Vision
 
-FastShip es un servidor de webhooks ligero para deployments automatizados con Docker Compose. La meta es ser la alternativa simple a Watchtower, Coolify, y Kamal para desarrolladores independientes y equipos pequenos.
+DeployDeck es un servidor de webhooks ligero para deployments automatizados con Docker Compose. La meta es ser la alternativa simple a Watchtower, Coolify, y Kamal para desarrolladores independientes y equipos pequenos.
 
 **Tagline**: "Deploy on push. No polling. No complexity."
 
@@ -40,15 +40,15 @@ Phase 1.5: Core Extended    █████████████████�
 
 ## Dos Modos de Deploy
 
-FastShip ahora soporta dos modos de despliegue:
+DeployDeck ahora soporta dos modos de despliegue:
 
 ```
 PULL MODE                           BUILD MODE
 (imagen precompilada)               (construye desde codigo)
 
-GitHub Actions → GHCR               GitHub push → FastShip
+GitHub Actions → GHCR               GitHub push → DeployDeck
        ↓                                   ↓
-  FastShip webhook                   Clone repo
+  DeployDeck webhook                   Clone repo
        ↓                                   ↓
   docker compose pull               docker compose build
        ↓                                   ↓
@@ -86,15 +86,15 @@ GitHub Actions → GHCR               GitHub push → FastShip
 |-------|----------|--------|
 | `install.sh` (curl \| bash) descarga binario correcto | 2h | Pending |
 | CLI: colores con lipgloss | 2h | Pending |
-| CLI: `fastship doctor` (verifica docker, config) | 2h | Pending |
-| CLI: `fastship status` (tabla con estado servicios) | 1h | Pending |
+| CLI: `deploydeck doctor` (verifica docker, config) | 2h | Pending |
+| CLI: `deploydeck status` (tabla con estado servicios) | 1h | Pending |
 | GitHub: issue templates (bug, feature) | 30min | Pending |
 | GitHub: PR template | 15min | Pending |
 | CONTRIBUTING.md | 1h | Pending |
 | README: agregar GIF de demo | 1h | Pending |
 | Release v0.1.0 con goreleaser | 2h | Pending |
 
-**Entregable**: Cualquiera puede `curl -fsSL fastship.dev/install | bash` e instalar
+**Entregable**: Cualquiera puede `curl -fsSL deploydeck.dev/install | bash` e instalar
 
 ---
 
@@ -194,7 +194,7 @@ Semana:  1    2    3    4    5    6    7    8
 
 ## Comparacion con Competencia
 
-| Feature | FastShip | Watchtower | Kamal | Coolify |
+| Feature | DeployDeck | Watchtower | Kamal | Coolify |
 |---------|----------|------------|-------|---------|
 | Instalacion | 1 comando | Docker | Ruby gems | Docker |
 | Config | 1 YAML | Labels | YAML + secrets | UI |
