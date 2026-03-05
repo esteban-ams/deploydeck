@@ -10,18 +10,20 @@ deploydeck/
 │   └── main.go                 # Application entry point (87 lines)
 ├── internal/
 │   ├── config/
-│   │   └── config.go           # Configuration parsing (240 lines)
+│   │   └── config.go           # Configuration parsing
 │   ├── webhook/
-│   │   ├── verify.go           # Auth verification (84 lines)
-│   │   ├── handler.go          # HTTP handlers (260 lines)
-│   │   └── payload.go          # Webhook payload parsing (71 lines)
+│   │   ├── verify.go           # Auth verification
+│   │   ├── handler.go          # HTTP handlers
+│   │   └── payload.go          # Webhook payload parsing
 │   ├── deploy/
-│   │   ├── deploy.go           # Deployment engine (366 lines)
-│   │   └── health.go           # Health checking (94 lines)
+│   │   ├── deploy.go           # Deployment engine
+│   │   └── health.go           # Health checking
 │   ├── docker/
-│   │   └── docker.go           # Docker operations (262 lines)
-│   └── git/
-│       └── git.go              # Git clone for build mode (91 lines)
+│   │   └── docker.go           # Docker operations
+│   ├── git/
+│   │   └── git.go              # Git clone for build mode
+│   └── ratelimit/
+│       └── ratelimit.go        # Per-IP rate limiting middleware
 ├── .github/workflows/
 │   └── build.yml               # CI/CD pipeline
 ├── docs/
@@ -203,7 +205,7 @@ func (v *Verifier) Verify(headers http.Header, body []byte) (bool, AuthMethod) {
         return v.verifySecret(token), AuthGitLab
     }
     // Then DeployDeck secret (HMAC or plain)
-    if secret := headers.Get("X-Fastship-Secret"); secret != "" { ... }
+    if secret := headers.Get("X-DeployDeck-Secret"); secret != "" { ... }
 }
 ```
 
@@ -461,9 +463,9 @@ Edit `internal/deploy/deploy.go` `executeDeploy()` function. Follow the existing
 - [x] Context cancellation and timeouts
 - [x] Token files (Docker Secrets pattern)
 - [x] Branch filtering (deploy only on correct branch)
-- [ ] Rate limiting (planned)
+- [x] Rate limiting (per-IP token bucket)
+- [x] Auth on GET /api/deployments
 - [ ] IP whitelisting (planned)
-- [ ] Auth on GET /api/deployments (planned)
 
 ## Getting Help
 
