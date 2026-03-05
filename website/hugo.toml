@@ -3,6 +3,11 @@ languageCode = 'en-us'
 title = 'DeployDeck - Container Deployment Command Center'
 theme = 'deploydeck'
 
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
 [params]
   description = "Lightweight webhook server that automates Docker Compose deployments"
   githubURL = "https://github.com/esteban-ams/deploydeck"

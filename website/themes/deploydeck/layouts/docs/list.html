@@ -1,0 +1,137 @@
+{{ define "main" }}
+{{ partial "nav.html" . }}
+
+<div class="docs-layout">
+  <!-- Mobile sidebar toggle -->
+  <button class="docs-sidebar-toggle" onclick="document.querySelector('.docs-sidebar').classList.toggle('open')" aria-label="Toggle documentation sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+    <span>Menu</span>
+  </button>
+
+  <!-- Sidebar -->
+  <aside class="docs-sidebar" id="docs-sidebar">
+    <div class="docs-sidebar-inner">
+      <div class="docs-sidebar-header">
+        <span class="docs-sidebar-title">Documentation</span>
+      </div>
+      <nav class="docs-nav">
+        <div class="docs-nav-group">
+          <div class="docs-nav-group-title">Getting Started</div>
+          <a href="#getting-started" class="docs-nav-link active" data-section="getting-started">Overview</a>
+          <a href="#getting-started" class="docs-nav-link" data-section="getting-started">Installation</a>
+          <a href="#getting-started" class="docs-nav-link" data-section="getting-started">Quick Start</a>
+          <a href="#getting-started" class="docs-nav-link" data-section="getting-started">Configuration Basics</a>
+        </div>
+        <div class="docs-nav-group">
+          <div class="docs-nav-group-title">Configuration</div>
+          <a href="#configuration" class="docs-nav-link" data-section="configuration">Config Reference</a>
+          <a href="#configuration" class="docs-nav-link" data-section="configuration">Environment Variables</a>
+          <a href="#configuration" class="docs-nav-link" data-section="configuration">Pull vs Build Mode</a>
+          <a href="#configuration" class="docs-nav-link" data-section="configuration">Health Checks</a>
+          <a href="#configuration" class="docs-nav-link" data-section="configuration">Rollback Settings</a>
+          <a href="#configuration" class="docs-nav-link" data-section="configuration">Rate Limiting</a>
+        </div>
+        <div class="docs-nav-group">
+          <div class="docs-nav-group-title">Webhooks</div>
+          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">GitHub Setup</a>
+          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">GitLab Setup</a>
+          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">CI/CD Integration</a>
+          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">Authentication</a>
+        </div>
+        <div class="docs-nav-group">
+          <div class="docs-nav-group-title">API Reference</div>
+          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">POST /api/deploy/:service</a>
+          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">POST /api/rollback/:service</a>
+          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">GET /api/deployments</a>
+          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">GET /api/health</a>
+        </div>
+        <div class="docs-nav-group">
+          <div class="docs-nav-group-title">Deployment</div>
+          <a href="#deployment" class="docs-nav-link" data-section="deployment">systemd</a>
+          <a href="#deployment" class="docs-nav-link" data-section="deployment">Docker Compose</a>
+          <a href="#deployment" class="docs-nav-link" data-section="deployment">Production Tips</a>
+        </div>
+        <div class="docs-nav-group">
+          <div class="docs-nav-group-title">CLI Reference</div>
+          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck</a>
+          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck doctor</a>
+          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck status</a>
+          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck version</a>
+        </div>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Sidebar overlay for mobile -->
+  <div class="docs-sidebar-overlay" onclick="document.querySelector('.docs-sidebar').classList.remove('open')"></div>
+
+  <!-- Main content -->
+  <main class="docs-main">
+    <div class="docs-content">
+      {{ .Content }}
+    </div>
+  </main>
+</div>
+
+{{ partial "footer.html" . }}
+
+<script>
+(function() {
+  // Active section highlighting in sidebar
+  var sections = document.querySelectorAll('.docs-section');
+  var navLinks = document.querySelectorAll('.docs-nav-group-title');
+  var sidebarLinks = document.querySelectorAll('.docs-nav-link');
+
+  // Track which section is active based on scroll
+  function updateActiveSection() {
+    var scrollPos = window.scrollY + 120;
+    var activeSection = '';
+
+    sections.forEach(function(section) {
+      if (section.offsetTop <= scrollPos) {
+        activeSection = section.id;
+      }
+    });
+
+    // Update group-level active state
+    sidebarLinks.forEach(function(link) {
+      var linkSection = link.getAttribute('data-section');
+      if (linkSection === activeSection) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveSection);
+  updateActiveSection();
+
+  // Close mobile sidebar when clicking a link
+  sidebarLinks.forEach(function(link) {
+    link.addEventListener('click', function() {
+      document.querySelector('.docs-sidebar').classList.remove('open');
+    });
+  });
+
+  // Smooth scroll for sidebar links
+  document.querySelectorAll('.docs-nav-link').forEach(function(anchor) {
+    anchor.addEventListener('click', function(e) {
+      var href = this.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        var target = document.querySelector(href);
+        if (target) {
+          e.preventDefault();
+          var offset = target.offsetTop - 80;
+          window.scrollTo({ top: offset, behavior: 'smooth' });
+        }
+      }
+    });
+  });
+})();
+</script>
+{{ end }}

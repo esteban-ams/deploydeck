@@ -10,18 +10,10 @@ Your container deployment command center. Deploy on push. No polling. No complex
 
 When you push code, your CI/CD builds a Docker image and pushes it to a registry. But how do you tell your server to pull the new image?
 
-```
-Developer  ──►  GitHub Actions  ──►  Registry
-                                        │
-                                   How to deploy?
-                                        ▼
-                                     ¿¿¿???
-```
-
 | Option | Problem |
 |--------|---------|
 | SSH manually | Log in every time |
-| SSH from CI/CD | Exposes server IP + SSH keys |
+| SSH from CI/CD | Exposes server IP and SSH keys |
 | Watchtower | Polls every X minutes, not instant |
 | Coolify/Portainer | Overkill for simple deployments |
 
@@ -31,22 +23,36 @@ DeployDeck runs on your server and listens for webhooks. It supports two deploym
 
 **Pull Mode** — Your CI/CD builds the image, pushes to a registry, then calls DeployDeck:
 
-```
-GitHub Actions ──► build + push image ──► POST /api/deploy/myapp ──► DeployDeck
-                                                                        │
-                                                              docker compose pull
-                                                              docker compose up -d
-                                                              health check ✓
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant CI as GitHub Actions
+    participant Reg as Registry
+    participant DD as DeployDeck
+
+    Dev->>CI: git push
+    CI->>Reg: docker build + push
+    CI->>DD: POST /api/deploy/myapp
+    DD->>Reg: docker compose pull
+    DD->>DD: docker compose up -d
+    DD->>DD: health check
+    DD-->>CI: 200 OK
 ```
 
 **Build Mode** — DeployDeck receives a push webhook, clones the repo, and builds on the server:
 
-```
-git push ──► GitHub webhook ──► DeployDeck ──► git clone
-                                               │
-                                      docker compose build
-                                      docker compose up -d
-                                      health check ✓
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub
+    participant DD as DeployDeck
+
+    Dev->>GH: git push
+    GH->>DD: push webhook
+    DD->>GH: git clone (shallow)
+    DD->>DD: docker compose build
+    DD->>DD: docker compose up -d
+    DD->>DD: health check
 ```
 
 ## Features
@@ -339,18 +345,21 @@ deploydeck/
 ```
 
 **Request flow:**
-```
-HTTP Request → webhook/handler.go → webhook/verify.go (auth)
-                     │
-                     ▼
-              deploy/deploy.go (orchestration)
-                     │
-           ┌─────────┼──────────┐
-           ▼         ▼          ▼
-      git/git.go  docker/    deploy/
-      (clone)    docker.go   health.go
-                (pull/build/  (health
-                 up/tag)      check)
+
+```mermaid
+flowchart TD
+    A[HTTP Request] --> B[webhook/handler.go]
+    B --> C{Auth}
+    C -->|invalid| D[401 Unauthorized]
+    C -->|valid| E[deploy/deploy.go]
+    E --> F{Mode}
+    F -->|build| G[git/git.go\nclone repo]
+    F -->|pull| H[docker/docker.go\npull image]
+    G --> I[docker/docker.go\nbuild + up]
+    H --> I
+    I --> J[deploy/health.go\nhealth check]
+    J -->|pass| K[success]
+    J -->|fail| L[rollback]
 ```
 
 ## Security
