@@ -1,13 +1,1 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <url>
-    <loc>https://deploydeck.dev/categories/</loc>
-  </url><url>
-    <loc>https://deploydeck.dev/</loc>
-  </url><url>
-    <loc>https://deploydeck.dev/docs/</loc>
-  </url><url>
-    <loc>https://deploydeck.dev/tags/</loc>
-  </url>
-</urlset>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml"><url><loc>https://esteban-ams.github.io/deploydeck/categories/</loc></url><url><loc>https://esteban-ams.github.io/deploydeck/</loc></url><url><loc>https://esteban-ams.github.io/deploydeck/docs/</loc></url><url><loc>https://esteban-ams.github.io/deploydeck/tags/</loc></url></urlset>
