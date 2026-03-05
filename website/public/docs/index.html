@@ -1175,46 +1175,50 @@ a:hover {
       <nav class="docs-nav">
         <div class="docs-nav-group">
           <div class="docs-nav-group-title">Getting Started</div>
-          <a href="#getting-started" class="docs-nav-link active" data-section="getting-started">Overview</a>
-          <a href="#getting-started" class="docs-nav-link" data-section="getting-started">Installation</a>
-          <a href="#getting-started" class="docs-nav-link" data-section="getting-started">Quick Start</a>
-          <a href="#getting-started" class="docs-nav-link" data-section="getting-started">Configuration Basics</a>
+          <a href="#getting-started" class="docs-nav-link">Overview</a>
+          <a href="#installation" class="docs-nav-link">Installation</a>
+          <a href="#quick-start" class="docs-nav-link">Quick Start</a>
+          <a href="#configuration-basics" class="docs-nav-link">Configuration Basics</a>
         </div>
         <div class="docs-nav-group">
           <div class="docs-nav-group-title">Configuration</div>
-          <a href="#configuration" class="docs-nav-link" data-section="configuration">Config Reference</a>
-          <a href="#configuration" class="docs-nav-link" data-section="configuration">Environment Variables</a>
-          <a href="#configuration" class="docs-nav-link" data-section="configuration">Pull vs Build Mode</a>
-          <a href="#configuration" class="docs-nav-link" data-section="configuration">Health Checks</a>
-          <a href="#configuration" class="docs-nav-link" data-section="configuration">Rollback Settings</a>
-          <a href="#configuration" class="docs-nav-link" data-section="configuration">Rate Limiting</a>
+          <a href="#configuration" class="docs-nav-link">Config Reference</a>
+          <a href="#environment-variables" class="docs-nav-link">Environment Variables</a>
+          <a href="#service-modes-pull-vs-build" class="docs-nav-link">Pull vs Build Mode</a>
+          <a href="#health-check-configuration" class="docs-nav-link">Health Checks</a>
+          <a href="#rollback-settings" class="docs-nav-link">Rollback Settings</a>
+          <a href="#rate-limiting" class="docs-nav-link">Rate Limiting</a>
         </div>
         <div class="docs-nav-group">
           <div class="docs-nav-group-title">Webhooks</div>
-          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">GitHub Setup</a>
-          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">GitLab Setup</a>
-          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">CI/CD Integration</a>
-          <a href="#webhooks" class="docs-nav-link" data-section="webhooks">Authentication</a>
+          <a href="#webhooks" class="docs-nav-link">Overview</a>
+          <a href="#github-webhook-setup" class="docs-nav-link">GitHub Setup</a>
+          <a href="#gitlab-webhook-setup" class="docs-nav-link">GitLab Setup</a>
+          <a href="#cicd-pipeline-integration" class="docs-nav-link">CI/CD Integration</a>
+          <a href="#authentication-methods" class="docs-nav-link">Authentication</a>
         </div>
         <div class="docs-nav-group">
           <div class="docs-nav-group-title">API Reference</div>
-          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">POST /api/deploy/:service</a>
-          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">POST /api/rollback/:service</a>
-          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">GET /api/deployments</a>
-          <a href="#api-reference" class="docs-nav-link" data-section="api-reference">GET /api/health</a>
+          <a href="#api-reference" class="docs-nav-link">Overview</a>
+          <a href="#post-apideployservice" class="docs-nav-link">POST /api/deploy/:service</a>
+          <a href="#post-apirollbackservice" class="docs-nav-link">POST /api/rollback/:service</a>
+          <a href="#get-apideployments" class="docs-nav-link">GET /api/deployments</a>
+          <a href="#get-apihealth" class="docs-nav-link">GET /api/health</a>
         </div>
         <div class="docs-nav-group">
           <div class="docs-nav-group-title">Deployment</div>
-          <a href="#deployment" class="docs-nav-link" data-section="deployment">systemd</a>
-          <a href="#deployment" class="docs-nav-link" data-section="deployment">Docker Compose</a>
-          <a href="#deployment" class="docs-nav-link" data-section="deployment">Production Tips</a>
+          <a href="#deployment" class="docs-nav-link">Overview</a>
+          <a href="#running-with-systemd" class="docs-nav-link">systemd</a>
+          <a href="#running-with-docker-compose" class="docs-nav-link">Docker Compose</a>
+          <a href="#production-tips" class="docs-nav-link">Production Tips</a>
         </div>
         <div class="docs-nav-group">
           <div class="docs-nav-group-title">CLI Reference</div>
-          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck</a>
-          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck doctor</a>
-          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck status</a>
-          <a href="#cli-reference" class="docs-nav-link" data-section="cli-reference">deploydeck version</a>
+          <a href="#cli-reference" class="docs-nav-link">Overview</a>
+          <a href="#deploydeck" class="docs-nav-link">deploydeck</a>
+          <a href="#deploydeck-doctor" class="docs-nav-link">deploydeck doctor</a>
+          <a href="#deploydeck-status" class="docs-nav-link">deploydeck status</a>
+          <a href="#deploydeck-version" class="docs-nav-link">deploydeck version</a>
         </div>
       </nav>
     </div>
@@ -1937,38 +1941,38 @@ Commit: a1b2c3d
 
 <script>
 (function() {
-  var sections = document.querySelectorAll('.docs-section');
-  var groups = document.querySelectorAll('.docs-nav-group');
+  var links = document.querySelectorAll('.docs-nav-link');
+  var targets = [];
 
-  function updateActiveSection() {
-    var scrollPos = window.scrollY + 120;
-    var activeSection = '';
+  links.forEach(function(link) {
+    var id = link.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) targets.push({ el: el, link: link });
+  });
 
-    sections.forEach(function(section) {
-      if (section.offsetTop <= scrollPos) {
-        activeSection = section.id;
+  function updateActive() {
+    var scrollPos = window.scrollY + 140;
+    var active = null;
+
+    for (var i = 0; i < targets.length; i++) {
+      if (targets[i].el.offsetTop <= scrollPos) {
+        active = targets[i].link;
       }
-    });
+    }
 
-    groups.forEach(function(group) {
-      var links = group.querySelectorAll('.docs-nav-link');
-      var groupSection = links[0] ? links[0].getAttribute('data-section') : '';
-      var isActive = groupSection === activeSection;
-      links.forEach(function(link) {
-        link.classList.toggle('active', isActive);
-      });
-    });
+    links.forEach(function(l) { l.classList.remove('active'); });
+    if (active) active.classList.add('active');
   }
 
-  window.addEventListener('scroll', updateActiveSection);
-  updateActiveSection();
+  window.addEventListener('scroll', updateActive);
+  updateActive();
 
-  document.querySelectorAll('.docs-nav-link').forEach(function(anchor) {
+  links.forEach(function(anchor) {
     anchor.addEventListener('click', function(e) {
       document.querySelector('.docs-sidebar').classList.remove('open');
       var href = this.getAttribute('href');
       if (href && href.startsWith('#')) {
-        var target = document.querySelector(href);
+        var target = document.getElementById(href.slice(1));
         if (target) {
           e.preventDefault();
           window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
