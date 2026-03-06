@@ -343,6 +343,62 @@ services:
 	}
 }
 
+func TestValidate_IPWhitelist_ValidEntries(t *testing.T) {
+	t.Parallel()
+	path := writeConfigFile(t, `
+auth:
+  webhook_secret: "secret"
+server:
+  ip_whitelist:
+    - "10.0.0.1"
+    - "192.168.1.0/24"
+    - "::1"
+services:
+  myapp:
+    compose_file: "docker-compose.yml"
+    service_name: "myapp"
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error for valid ip_whitelist: %v", err)
+	}
+	if len(cfg.Server.IPWhitelist) != 3 {
+		t.Errorf("expected 3 whitelist entries, got %d", len(cfg.Server.IPWhitelist))
+	}
+}
+
+func TestValidate_IPWhitelist_InvalidEntry(t *testing.T) {
+	t.Parallel()
+	path := writeConfigFile(t, `
+auth:
+  webhook_secret: "secret"
+server:
+  ip_whitelist:
+    - "not-an-ip"
+services:
+  myapp:
+    compose_file: "docker-compose.yml"
+    service_name: "myapp"
+`)
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for invalid ip_whitelist entry")
+	}
+}
+
+func TestValidate_IPWhitelist_EmptyIsAllowed(t *testing.T) {
+	t.Parallel()
+	// An absent ip_whitelist section must not trigger a validation error.
+	path := writeConfigFile(t, minimalConfig())
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error with no ip_whitelist: %v", err)
+	}
+	if len(cfg.Server.IPWhitelist) != 0 {
+		t.Errorf("expected empty whitelist, got %v", cfg.Server.IPWhitelist)
+	}
+}
+
 func TestResolveTokenFiles_FromFile(t *testing.T) {
 	tokenFile := filepath.Join(t.TempDir(), "token")
 	if err := os.WriteFile(tokenFile, []byte("file-token\n"), 0644); err != nil {

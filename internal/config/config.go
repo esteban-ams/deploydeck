@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -47,6 +48,11 @@ type ServerConfig struct {
 		CertFile string `yaml:"cert_file"`
 		KeyFile  string `yaml:"key_file"`
 	} `yaml:"tls"`
+	// IPWhitelist restricts access to the deploy and rollback endpoints.
+	// Each entry may be a single IP address (e.g. "10.0.0.1") or a CIDR
+	// range (e.g. "192.168.1.0/24"). When the list is empty all IPs are
+	// allowed. Health and deployments endpoints are never filtered.
+	IPWhitelist []string `yaml:"ip_whitelist"`
 }
 
 // AuthConfig holds webhook authentication settings
@@ -264,6 +270,16 @@ func validate(cfg *Config) error {
 		}
 		if svc.Mode != DeployModePull && svc.Mode != DeployModeBuild {
 			return fmt.Errorf("service %q: invalid mode %q — must be 'pull' (deploy a pre-built image) or 'build' (clone and build on this server)", name, svc.Mode)
+		}
+	}
+
+	for _, entry := range cfg.Server.IPWhitelist {
+		// Accept plain IP addresses and CIDR ranges.
+		if _, _, err := net.ParseCIDR(entry); err == nil {
+			continue
+		}
+		if net.ParseIP(entry) == nil {
+			return fmt.Errorf("server.ip_whitelist: %q is not a valid IP address or CIDR range (e.g. \"10.0.0.1\" or \"192.168.1.0/24\")", entry)
 		}
 	}
 

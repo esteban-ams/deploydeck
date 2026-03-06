@@ -12,6 +12,7 @@ import (
 
 	"github.com/esteban-ams/deploydeck/internal/config"
 	"github.com/esteban-ams/deploydeck/internal/deploy"
+	"github.com/esteban-ams/deploydeck/internal/ipwhitelist"
 	"github.com/esteban-ams/deploydeck/internal/ratelimit"
 	"github.com/esteban-ams/deploydeck/internal/webhook"
 	"github.com/labstack/echo/v4"
@@ -69,14 +70,25 @@ func runServer(cmd *cobra.Command, args []string) error {
 	api.GET("/deployments", handler.HandleListDeployments)
 	api.GET("/health", handler.HandleHealth)
 
-	// Rate limiting applies only to the mutating webhook endpoints.
+	// Rate limiting and IP whitelisting apply only to the mutating webhook endpoints.
 	webhookGroup := api.Group("")
+
 	if cfg.RateLimit.Enabled {
 		log.Printf("Rate limiting enabled: %d requests/min per IP (burst: %d)",
 			cfg.RateLimit.RequestsPerMinute, cfg.RateLimit.BurstSize)
 		rl := ratelimit.NewLimiter(cfg.RateLimit.RequestsPerMinute, cfg.RateLimit.BurstSize)
 		webhookGroup.Use(rl.Middleware())
 	}
+
+	wl, err := ipwhitelist.New(cfg.Server.IPWhitelist)
+	if err != nil {
+		return fmt.Errorf("invalid ip_whitelist configuration: %w", err)
+	}
+	if len(cfg.Server.IPWhitelist) > 0 {
+		log.Printf("IP whitelist enabled: %d entries", len(cfg.Server.IPWhitelist))
+	}
+	webhookGroup.Use(wl.Middleware())
+
 	webhookGroup.POST("/deploy/:service", handler.HandleDeploy)
 	webhookGroup.POST("/rollback/:service", handler.HandleRollback)
 

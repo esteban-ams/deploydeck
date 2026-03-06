@@ -8,6 +8,12 @@ server:
     enabled: false
     cert_file: "/path/to/cert.pem"
     key_file: "/path/to/key.pem"
+  # ip_whitelist restricts the /api/deploy and /api/rollback endpoints to
+  # specific source IPs or CIDR ranges. /api/health and /api/deployments are
+  # never filtered. When this list is empty (or omitted) all IPs are allowed.
+  # ip_whitelist:
+  #   - "10.0.0.0/8"         # internal network
+  #   - "192.168.1.42"       # specific CI server
 
 auth:
   # Generate with: openssl rand -hex 32
