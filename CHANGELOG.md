@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- IP whitelisting middleware for deploy endpoints (IPs and CIDRs)
 - Rate limiting middleware (per-IP token bucket via `golang.org/x/time/rate`)
 - Authentication required on `GET /api/deployments`
 - Landing page with Hugo static site and custom theme
@@ -23,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redesigned landing page with refined industrial aesthetic (DM Serif Display + coral accent)
 - Improved error messages across all packages with actionable suggestions
 - Updated README with Mermaid sequence diagrams and flowcharts
+
+### Removed
+- Redundant docs (QUICKSTART.md, ROADMAP.md, TODO.md) — consolidated into README and website
 
 ### Fixed
 - Nav links now work correctly across pages (docs → landing page sections)

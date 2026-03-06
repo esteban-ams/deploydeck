@@ -464,7 +464,7 @@ Edit `internal/deploy/deploy.go` `executeDeploy()` function. Follow the existing
 - [x] Branch filtering (deploy only on correct branch)
 - [x] Rate limiting (per-IP token bucket)
 - [x] Auth on GET /api/deployments
-- [ ] IP whitelisting (planned)
+- [x] IP whitelisting (configurable IPs and CIDRs)
 
 ## Getting Help
 
