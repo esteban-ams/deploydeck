@@ -38,9 +38,8 @@ deploydeck/
 ├── Makefile                    # Build commands
 ├── go.mod                      # Go dependencies
 ├── README.md                   # User documentation
-├── QUICKSTART.md               # Quick start guide
-├── ROADMAP.md                  # Development roadmap
-├── TODO.md                     # Task tracking
+├── CHANGELOG.md                # Version history
+├── CONTRIBUTING.md             # Contribution guide
 └── LICENSE                     # MIT License
 ```
 
@@ -472,5 +471,4 @@ Edit `internal/deploy/deploy.go` `executeDeploy()` function. Follow the existing
 - [README.md](../README.md) - User documentation
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - System design
 - [CASE_STUDY.md](./CASE_STUDY.md) - Production case study
-- [QUICKSTART.md](../QUICKSTART.md) - Quick start guide
-- [ROADMAP.md](../ROADMAP.md) - Development roadmap
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guide

@@ -465,5 +465,4 @@ DeployDeck demostro ser una solucion efectiva para automatizar deployments en un
 
 - [Repositorio DeployDeck](https://github.com/esteban-ams/deploydeck)
 - [Documentacion](./ARCHITECTURE.md)
-- [Quick Start](../QUICKSTART.md)
-- [Roadmap](../ROADMAP.md)
+- [Website](https://esteban-ams.github.io/deploydeck/)
