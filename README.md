@@ -67,6 +67,14 @@ sequenceDiagram
 - **Auto-prune**: Clean Docker build cache after successful builds
 - **Async deployments**: Per-service serialization, different services deploy concurrently
 
+## Install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/esteban-ams/deploydeck/main/install.sh | bash
+```
+
+Supports Linux (amd64, arm64) and macOS (amd64, arm64). Installs to `/usr/local/bin/deploydeck`.
+
 ## Quick Start (Pull Mode)
 
 ### 1. Download
@@ -221,7 +229,7 @@ Manual rollback endpoint (stub — will be fully implemented with persistent sto
 ### GET /api/health
 
 ```json
-{"status": "healthy", "version": "0.1.0", "uptime": "48h30m"}
+{"status": "healthy", "version": "0.3.0", "uptime": "48h30m"}
 ```
 
 ## Configuration Reference

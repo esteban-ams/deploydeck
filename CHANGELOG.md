@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-20
+
 ### Added
+- One-liner install script (`install.sh`) — auto-detects OS/arch, installs to `/usr/local/bin`
+- Raw binary publishing via GoReleaser: `deploydeck-linux-amd64`, `deploydeck-linux-arm64`, `deploydeck-darwin-amd64`, `deploydeck-darwin-arm64`
 - IP whitelisting middleware for deploy endpoints (IPs and CIDRs)
 - Rate limiting middleware (per-IP token bucket via `golang.org/x/time/rate`)
 - Authentication required on `GET /api/deployments`
@@ -24,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redesigned landing page with refined industrial aesthetic (DM Serif Display + coral accent)
 - Improved error messages across all packages with actionable suggestions
 - Updated README with Mermaid sequence diagrams and flowcharts
+- Install section now features one-liner prominently in README and docs
 
 ### Removed
 - Redundant docs (QUICKSTART.md, ROADMAP.md, TODO.md) — consolidated into README and website
@@ -68,5 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Architecture and code overview documentation
 - Production case study
 
-[Unreleased]: https://github.com/esteban-ams/deploydeck/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/esteban-ams/deploydeck/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/esteban-ams/deploydeck/compare/v0.1.0...v0.3.0
 [0.1.0]: https://github.com/esteban-ams/deploydeck/releases/tag/v0.1.0

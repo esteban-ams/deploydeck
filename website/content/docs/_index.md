@@ -13,7 +13,15 @@ DeployDeck is a lightweight Go webhook server that automates Docker Compose depl
 
 ### Installation
 
-There are three ways to install DeployDeck:
+The fastest way to install DeployDeck is with the one-liner install script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/esteban-ams/deploydeck/main/install.sh | bash
+```
+
+Supports Linux (amd64, arm64) and macOS (amd64, arm64). Installs to `/usr/local/bin/deploydeck`.
+
+There are also three manual installation options:
 
 #### Binary Download
 

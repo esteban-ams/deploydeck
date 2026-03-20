@@ -26,6 +26,12 @@ archives:
       - config.example.yaml
       - deploydeck.service
 
+  - id: raw-binaries
+    format: binary
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    files:
+      - none*
+
 checksum:
   name_template: checksums.txt
 
