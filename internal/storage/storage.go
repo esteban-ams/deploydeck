@@ -1,6 +1,9 @@
 package storage
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Status represents the deployment status.
 type Status string
@@ -38,6 +41,12 @@ type Storage interface {
 	Get(id string) (*Deployment, error)
 	// List returns all deployments ordered by started_at descending.
 	List() ([]*Deployment, error)
+	// GetLatestByService returns the most recent deployment for the given
+	// service name, or ErrNotFound if no deployments exist for that service.
+	GetLatestByService(service string) (*Deployment, error)
 	// Close releases any resources held by the storage backend.
 	Close() error
 }
+
+// ErrNotFound is returned when a requested record does not exist.
+var ErrNotFound = fmt.Errorf("not found")

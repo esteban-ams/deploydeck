@@ -194,10 +194,20 @@ func (h *Handler) HandleRollback(c echo.Context) error {
 		})
 	}
 
+	deployment, err := h.engine.Rollback(c.Request().Context(), serviceName)
+	if err != nil {
+		log.Printf("Rollback failed for service %q: %v", serviceName, err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("rollback failed for service %q: %v", serviceName, err),
+		})
+	}
+
+	log.Printf("Manual rollback %s completed for service %s", deployment.ID, serviceName)
+
 	return c.JSON(http.StatusOK, RollbackResponse{
-		Status:  "not_implemented",
-		Service: serviceName,
-		Message: "Rollback functionality will be implemented with persistent storage",
+		Status:       string(deployment.Status),
+		DeploymentID: deployment.ID,
+		Service:      serviceName,
 	})
 }
 

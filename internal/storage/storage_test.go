@@ -1,6 +1,7 @@
 package storage_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -162,6 +163,87 @@ func testStorage(t *testing.T, s storage.Storage) {
 		}
 		if !got.CompletedAt.Equal(ts) {
 			t.Errorf("CompletedAt: want %v, got %v", ts, got.CompletedAt)
+		}
+	})
+
+	t.Run("GetLatestByService returns most recent deployment", func(t *testing.T) {
+		t.Parallel()
+		// Save three deployments for the same service with different timestamps.
+		deployments := []*storage.Deployment{
+			{
+				ID:        "dep_latest_old",
+				Service:   "svc-latest",
+				Status:    storage.StatusSuccess,
+				StartedAt: time.Unix(0, 1711000100000000000),
+			},
+			{
+				ID:        "dep_latest_newest",
+				Service:   "svc-latest",
+				Status:    storage.StatusFailed,
+				StartedAt: time.Unix(0, 1711000300000000000),
+			},
+			{
+				ID:        "dep_latest_middle",
+				Service:   "svc-latest",
+				Status:    storage.StatusRunning,
+				StartedAt: time.Unix(0, 1711000200000000000),
+			},
+		}
+		for _, d := range deployments {
+			if err := s.Save(d); err != nil {
+				t.Fatalf("Save %q: %v", d.ID, err)
+			}
+		}
+
+		got, err := s.GetLatestByService("svc-latest")
+		if err != nil {
+			t.Fatalf("GetLatestByService: %v", err)
+		}
+		if got.ID != "dep_latest_newest" {
+			t.Errorf("GetLatestByService: want ID %q, got %q", "dep_latest_newest", got.ID)
+		}
+	})
+
+	t.Run("GetLatestByService ignores other services", func(t *testing.T) {
+		t.Parallel()
+		// Save a deployment for a different service that has a later timestamp
+		// than the one for our target service. GetLatestByService must not
+		// return the other-service record.
+		earlier := &storage.Deployment{
+			ID:        "dep_filter_target",
+			Service:   "svc-filter-target",
+			Status:    storage.StatusSuccess,
+			StartedAt: time.Unix(0, 1711000400000000000),
+		}
+		other := &storage.Deployment{
+			ID:        "dep_filter_other",
+			Service:   "svc-filter-other",
+			Status:    storage.StatusSuccess,
+			StartedAt: time.Unix(0, 1711000500000000000),
+		}
+		for _, d := range []*storage.Deployment{earlier, other} {
+			if err := s.Save(d); err != nil {
+				t.Fatalf("Save %q: %v", d.ID, err)
+			}
+		}
+
+		got, err := s.GetLatestByService("svc-filter-target")
+		if err != nil {
+			t.Fatalf("GetLatestByService: %v", err)
+		}
+		if got.ID != "dep_filter_target" {
+			t.Errorf("GetLatestByService: want ID %q, got %q", "dep_filter_target", got.ID)
+		}
+	})
+
+	t.Run("GetLatestByService returns ErrNotFound for unknown service", func(t *testing.T) {
+		t.Parallel()
+		_, err := s.GetLatestByService("svc-does-not-exist-xyz")
+		if err == nil {
+			t.Fatal("expected error for unknown service, got nil")
+		}
+		if !errors.Is(err, storage.ErrNotFound) {
+			t.Errorf("expected ErrNotFound, got: %v", err)
 		}
 	})
 }

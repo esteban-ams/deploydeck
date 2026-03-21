@@ -174,6 +174,27 @@ func (s *SQLiteStorage) List() ([]*Deployment, error) {
 	return result, nil
 }
 
+// GetLatestByService returns the most recently started deployment for the given
+// service, or ErrNotFound if no deployments exist for that service.
+func (s *SQLiteStorage) GetLatestByService(service string) (*Deployment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	row := s.db.QueryRow(`
+		SELECT id, service, status, mode, image, previous_image, rollback_tag,
+		       started_at, completed_at, error_message
+		FROM deployments WHERE service = ? ORDER BY started_at DESC LIMIT 1`, service)
+
+	d, err := scanDeployment(row)
+	if err != nil {
+		if err.Error() == "deployment not found" {
+			return nil, fmt.Errorf("service %q: %w", service, ErrNotFound)
+		}
+		return nil, fmt.Errorf("get latest deployment for service %q: %w", service, err)
+	}
+	return d, nil
+}
+
 // Close releases the database connection.
 func (s *SQLiteStorage) Close() error {
 	s.mu.Lock()

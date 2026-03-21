@@ -299,6 +299,75 @@ func (e *Engine) cleanupOldRollbackTags(ctx context.Context, serviceName string,
 	}
 }
 
+// Rollback initiates a manual rollback for a service by reverting to the
+// rollback snapshot captured during the service's latest deployment.
+// It runs synchronously and returns the new deployment record on success.
+func (e *Engine) Rollback(ctx context.Context, serviceName string) (*storage.Deployment, error) {
+	svcCfg, ok := e.config.Services[serviceName]
+	if !ok {
+		return nil, fmt.Errorf("service %q not found in configuration", serviceName)
+	}
+
+	latest, err := e.store.GetLatestByService(serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("service %q: could not retrieve latest deployment: %w", serviceName, err)
+	}
+
+	if latest.RollbackTag == "" {
+		return nil, fmt.Errorf("no rollback snapshot available for service %q: the latest deployment did not capture a rollback image (rollback may be disabled or it was the first deployment)", serviceName)
+	}
+
+	// Lock the service to serialise against concurrent deploys.
+	svcLock := e.getServiceLock(serviceName)
+	svcLock.Lock()
+	defer svcLock.Unlock()
+
+	// Create a deployment record for this manual rollback.
+	now := time.Now()
+	deployment := &storage.Deployment{
+		ID:            generateDeploymentID(),
+		Service:       serviceName,
+		Status:        storage.StatusRunning,
+		Mode:          string(svcCfg.Mode),
+		PreviousImage: latest.PreviousImage,
+		RollbackTag:   latest.RollbackTag,
+		StartedAt:     now,
+	}
+	if err := e.store.Save(deployment); err != nil {
+		return nil, fmt.Errorf("save rollback deployment record for service %q: %w", serviceName, err)
+	}
+
+	log.Printf("Manual rollback %s started for service %s (restoring %s)", deployment.ID, serviceName, latest.RollbackTag)
+
+	rollbackCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+	if err := e.rollback(rollbackCtx, latest, svcCfg); err != nil {
+		errMsg := fmt.Sprintf("service %q: manual rollback failed: %v", serviceName, err)
+		log.Printf("Manual rollback %s failed: %v", deployment.ID, err)
+		completed := time.Now()
+		e.updateDeployment(deployment.ID, func(d *storage.Deployment) {
+			d.Status = storage.StatusFailed
+			d.ErrorMessage = errMsg
+			d.CompletedAt = &completed
+		})
+		return nil, fmt.Errorf("%s", errMsg)
+	}
+
+	log.Printf("Manual rollback %s completed successfully for service %s", deployment.ID, serviceName)
+	completed := time.Now()
+	e.updateDeployment(deployment.ID, func(d *storage.Deployment) {
+		d.Status = storage.StatusRolledBack
+		d.CompletedAt = &completed
+	})
+
+	result, err := e.store.Get(deployment.ID)
+	if err != nil {
+		return nil, fmt.Errorf("retrieve rollback deployment %q: %w", deployment.ID, err)
+	}
+	return result, nil
+}
+
 // GetDeployment retrieves a deployment by ID.
 func (e *Engine) GetDeployment(id string) (*storage.Deployment, error) {
 	return e.store.Get(id)

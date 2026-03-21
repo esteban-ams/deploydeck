@@ -74,6 +74,28 @@ func (m *MemoryStorage) List() ([]*Deployment, error) {
 	return result, nil
 }
 
+// GetLatestByService returns the most recently started deployment for the given
+// service, or ErrNotFound if no deployments exist for that service.
+func (m *MemoryStorage) GetLatestByService(service string) (*Deployment, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var latest *Deployment
+	for _, d := range m.deployments {
+		if d.Service != service {
+			continue
+		}
+		if latest == nil || d.StartedAt.After(latest.StartedAt) {
+			cp := *d
+			latest = &cp
+		}
+	}
+	if latest == nil {
+		return nil, fmt.Errorf("service %q: %w", service, ErrNotFound)
+	}
+	return latest, nil
+}
+
 // Close is a no-op for the in-memory backend.
 func (m *MemoryStorage) Close() error { return nil }
 
