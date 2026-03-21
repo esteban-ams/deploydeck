@@ -19,6 +19,13 @@ const (
 	DeployModeBuild DeployMode = "build"
 )
 
+// StorageConfig holds persistent storage configuration.
+type StorageConfig struct {
+	// DBPath is the path to the SQLite database file. When empty, an
+	// in-memory store is used and deployment history is lost on restart.
+	DBPath string `yaml:"db_path"`
+}
+
 // Config represents the complete DeployDeck configuration
 type Config struct {
 	Server    ServerConfig             `yaml:"server"`
@@ -26,6 +33,7 @@ type Config struct {
 	RateLimit RateLimitConfig          `yaml:"rate_limit"`
 	Dashboard DashboardConfig          `yaml:"dashboard"`
 	Logging   LoggingConfig            `yaml:"logging"`
+	Storage   StorageConfig            `yaml:"storage"`
 	Services  map[string]ServiceConfig `yaml:"services"`
 }
 
@@ -153,6 +161,9 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if burst := os.Getenv("DEPLOYDECK_RATE_LIMIT_BURST"); burst != "" {
 		fmt.Sscanf(burst, "%d", &cfg.RateLimit.BurstSize)
+	}
+	if dbPath := os.Getenv("DEPLOYDECK_DB_PATH"); dbPath != "" {
+		cfg.Storage.DBPath = dbPath
 	}
 }
 

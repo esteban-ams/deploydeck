@@ -10,49 +10,25 @@ import (
 	"github.com/esteban-ams/deploydeck/internal/config"
 	"github.com/esteban-ams/deploydeck/internal/docker"
 	"github.com/esteban-ams/deploydeck/internal/git"
+	"github.com/esteban-ams/deploydeck/internal/storage"
 )
 
-// Status represents the deployment status
-type Status string
-
-const (
-	StatusPending     Status = "pending"
-	StatusRunning     Status = "running"
-	StatusSuccess     Status = "success"
-	StatusFailed      Status = "failed"
-	StatusRolledBack  Status = "rolled_back"
-)
-
-// Deployment represents a single deployment
-type Deployment struct {
-	ID            string
-	Service       string
-	Status        Status
-	Mode          string
-	Image         string
-	PreviousImage string
-	RollbackTag   string
-	StartedAt     time.Time
-	CompletedAt   *time.Time
-	ErrorMessage  string
-}
-
-// Engine orchestrates deployments
+// Engine orchestrates deployments.
 type Engine struct {
-	mu            sync.Mutex
-	serviceLocks  map[string]*sync.Mutex
-	deployments   map[string]*Deployment
-	dockerClient  *docker.Client
-	gitClient     *git.Client
+	mu           sync.Mutex
+	serviceLocks map[string]*sync.Mutex
+	store        storage.Storage
+	dockerClient *docker.Client
+	gitClient    *git.Client
 	healthChecker *HealthChecker
 	config        *config.Config
 }
 
-// NewEngine creates a new deployment engine
-func NewEngine(cfg *config.Config) *Engine {
+// NewEngine creates a new deployment engine backed by the given store.
+func NewEngine(cfg *config.Config, store storage.Storage) *Engine {
 	return &Engine{
 		serviceLocks:  make(map[string]*sync.Mutex),
-		deployments:   make(map[string]*Deployment),
+		store:         store,
 		dockerClient:  docker.NewClient(),
 		gitClient:     git.NewClient(),
 		healthChecker: NewHealthChecker(),
@@ -60,7 +36,7 @@ func NewEngine(cfg *config.Config) *Engine {
 	}
 }
 
-// DeployOptions holds deployment options
+// DeployOptions holds deployment options.
 type DeployOptions struct {
 	Image    string
 	Tag      string
@@ -69,9 +45,9 @@ type DeployOptions struct {
 	Commit   string // for build mode: commit SHA
 }
 
-// Deploy initiates a deployment for a service
-// Returns the deployment ID immediately and performs deployment asynchronously
-func (e *Engine) Deploy(ctx context.Context, serviceName string, opts DeployOptions) (*Deployment, error) {
+// Deploy initiates a deployment for a service.
+// Returns the deployment record immediately and performs deployment asynchronously.
+func (e *Engine) Deploy(ctx context.Context, serviceName string, opts DeployOptions) (*storage.Deployment, error) {
 	// Check if service exists in config
 	svcCfg, ok := e.config.Services[serviceName]
 	if !ok {
@@ -82,40 +58,40 @@ func (e *Engine) Deploy(ctx context.Context, serviceName string, opts DeployOpti
 	svcLock := e.getServiceLock(serviceName)
 
 	// Create deployment record
-	deployment := &Deployment{
+	deployment := &storage.Deployment{
 		ID:        generateDeploymentID(),
 		Service:   serviceName,
-		Status:    StatusPending,
+		Status:    storage.StatusPending,
 		Mode:      string(svcCfg.Mode),
 		Image:     opts.Image,
 		StartedAt: time.Now(),
 	}
 
-	e.mu.Lock()
-	e.deployments[deployment.ID] = deployment
-	e.mu.Unlock()
+	if err := e.store.Save(deployment); err != nil {
+		return nil, fmt.Errorf("save deployment record for service %q: %w", serviceName, err)
+	}
 
 	// Start deployment in background
 	go func() {
-		// Lock this service to serialize deployments
+		// Lock this service to serialise deployments
 		svcLock.Lock()
 		defer svcLock.Unlock()
 
 		// Create a timeout context for the entire deployment operation
-		ctx, cancel := context.WithTimeout(context.Background(), svcCfg.Timeout)
+		deployCtx, cancel := context.WithTimeout(context.Background(), svcCfg.Timeout)
 		defer cancel()
 
-		e.executeDeploy(ctx, deployment, svcCfg, opts)
+		e.executeDeploy(deployCtx, deployment, svcCfg, opts)
 	}()
 
 	return deployment, nil
 }
 
-// executeDeploy performs the actual deployment
-func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcCfg config.ServiceConfig, opts DeployOptions) {
+// executeDeploy performs the actual deployment.
+func (e *Engine) executeDeploy(ctx context.Context, deployment *storage.Deployment, svcCfg config.ServiceConfig, opts DeployOptions) {
 	// Update status to running
-	e.updateDeployment(deployment.ID, func(d *Deployment) {
-		d.Status = StatusRunning
+	e.updateDeployment(deployment.ID, func(d *storage.Deployment) {
+		d.Status = storage.StatusRunning
 	})
 
 	log.Printf("Starting deployment %s for service %s (mode: %s)", deployment.ID, deployment.Service, svcCfg.Mode)
@@ -137,19 +113,33 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 			if err != nil {
 				log.Printf("Warning: could not get current image for %s: %v", deployment.Service, err)
 			} else {
-				deployment.PreviousImage = currentImage
-				log.Printf("Saved current image for rollback: %s", currentImage)
-
-				// Tag current image as rollback snapshot
 				rollbackTag := fmt.Sprintf("%s:rollback-%d", deployment.Service, time.Now().Unix())
-				if err := e.dockerClient.TagImage(ctx, currentImage, rollbackTag); err != nil {
-					log.Printf("Warning: could not tag rollback image for %s: %v", deployment.Service, err)
+				tagErr := e.dockerClient.TagImage(ctx, currentImage, rollbackTag)
+
+				// Persist PreviousImage and (if tagging succeeded) RollbackTag
+				// immediately so that SQLite retains rollback info across restarts.
+				e.updateDeployment(deployment.ID, func(d *storage.Deployment) {
+					d.PreviousImage = currentImage
+					if tagErr == nil {
+						d.RollbackTag = rollbackTag
+					}
+				})
+
+				if tagErr != nil {
+					log.Printf("Warning: could not tag rollback image for %s: %v", deployment.Service, tagErr)
 				} else {
-					deployment.RollbackTag = rollbackTag
+					log.Printf("Saved current image for rollback: %s", currentImage)
 					log.Printf("Tagged rollback image: %s -> %s", currentImage, rollbackTag)
 				}
 			}
 		}
+	}
+
+	// Refresh local copy so rollback logic below sees the persisted values.
+	current, err := e.store.Get(deployment.ID)
+	if err != nil {
+		log.Printf("Warning: could not re-read deployment %s from store: %v", deployment.ID, err)
+		current = deployment
 	}
 
 	// Step 2: Mode-specific operations
@@ -164,14 +154,14 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 			Token:      svcCfg.CloneToken,
 		}
 		if err := e.gitClient.Clone(ctx, cloneOpts); err != nil {
-			e.handleDeploymentFailure(deployment, "clone", err, svcCfg)
+			e.handleDeploymentFailure(current, "clone", err, svcCfg)
 			return
 		}
 
 		// Build image
 		log.Printf("Building image for service %s", deployment.Service)
 		if err := e.dockerClient.ComposeBuild(ctx, dockerOpts); err != nil {
-			e.handleDeploymentFailure(deployment, "build", err, svcCfg)
+			e.handleDeploymentFailure(current, "build", err, svcCfg)
 			return
 		}
 
@@ -179,7 +169,7 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 		// Pull mode (default)
 		log.Printf("Pulling image for service %s", deployment.Service)
 		if err := e.dockerClient.ComposePull(ctx, dockerOpts); err != nil {
-			e.handleDeploymentFailure(deployment, "pull", err, svcCfg)
+			e.handleDeploymentFailure(current, "pull", err, svcCfg)
 			return
 		}
 	}
@@ -187,7 +177,7 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 	// Step 3: Deploy (docker compose up -d) — same for both modes
 	log.Printf("Deploying service %s", deployment.Service)
 	if err := e.dockerClient.ComposeUp(ctx, dockerOpts); err != nil {
-		e.handleDeploymentFailure(deployment, "up", err, svcCfg)
+		e.handleDeploymentFailure(current, "up", err, svcCfg)
 		return
 	}
 
@@ -195,7 +185,7 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 	if svcCfg.HealthCheck.Enabled {
 		log.Printf("Running health check for service %s", deployment.Service)
 		if err := e.healthChecker.Wait(ctx, svcCfg.HealthCheck); err != nil {
-			e.handleDeploymentFailure(deployment, "health_check", err, svcCfg)
+			e.handleDeploymentFailure(current, "health_check", err, svcCfg)
 			return
 		}
 		log.Printf("Health check passed for service %s", deployment.Service)
@@ -203,8 +193,8 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 
 	// Step 5: Mark deployment as successful
 	now := time.Now()
-	e.updateDeployment(deployment.ID, func(d *Deployment) {
-		d.Status = StatusSuccess
+	e.updateDeployment(deployment.ID, func(d *storage.Deployment) {
+		d.Status = storage.StatusSuccess
 		d.CompletedAt = &now
 	})
 
@@ -226,12 +216,12 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *Deployment, svcC
 	}
 }
 
-// handleDeploymentFailure handles a failed deployment
-func (e *Engine) handleDeploymentFailure(deployment *Deployment, phase string, err error, svcCfg config.ServiceConfig) {
+// handleDeploymentFailure handles a failed deployment.
+func (e *Engine) handleDeploymentFailure(deployment *storage.Deployment, phase string, err error, svcCfg config.ServiceConfig) {
 	errMsg := fmt.Sprintf("service %q: deployment failed at %s phase: %v", deployment.Service, phase, err)
 	log.Printf("Deployment %s failed: %s", deployment.ID, errMsg)
 
-	finalStatus := StatusFailed
+	finalStatus := storage.StatusFailed
 
 	// Attempt rollback if enabled and we have a previous image
 	if svcCfg.Rollback.Enabled && deployment.PreviousImage != "" {
@@ -246,20 +236,20 @@ func (e *Engine) handleDeploymentFailure(deployment *Deployment, phase string, e
 			log.Printf("Rollback failed for deployment %s: %v", deployment.ID, rbErr)
 		} else {
 			log.Printf("Rollback successful for deployment %s", deployment.ID)
-			finalStatus = StatusRolledBack
+			finalStatus = storage.StatusRolledBack
 		}
 	}
 
 	now := time.Now()
-	e.updateDeployment(deployment.ID, func(d *Deployment) {
+	e.updateDeployment(deployment.ID, func(d *storage.Deployment) {
 		d.Status = finalStatus
 		d.ErrorMessage = errMsg
 		d.CompletedAt = &now
 	})
 }
 
-// rollback reverts to the previously tagged rollback image
-func (e *Engine) rollback(ctx context.Context, deployment *Deployment, svcCfg config.ServiceConfig) error {
+// rollback reverts to the previously tagged rollback image.
+func (e *Engine) rollback(ctx context.Context, deployment *storage.Deployment, svcCfg config.ServiceConfig) error {
 	dockerOpts := docker.ComposeOptions{
 		ComposeFile: svcCfg.ComposeFile,
 		Service:     svcCfg.ServiceName,
@@ -309,33 +299,22 @@ func (e *Engine) cleanupOldRollbackTags(ctx context.Context, serviceName string,
 	}
 }
 
-// GetDeployment retrieves a deployment by ID
-func (e *Engine) GetDeployment(id string) (*Deployment, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	deployment, ok := e.deployments[id]
-	if !ok {
-		return nil, fmt.Errorf("deployment %s not found", id)
-	}
-
-	return deployment, nil
+// GetDeployment retrieves a deployment by ID.
+func (e *Engine) GetDeployment(id string) (*storage.Deployment, error) {
+	return e.store.Get(id)
 }
 
-// ListDeployments returns all deployments
-func (e *Engine) ListDeployments() []*Deployment {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	deployments := make([]*Deployment, 0, len(e.deployments))
-	for _, d := range e.deployments {
-		deployments = append(deployments, d)
+// ListDeployments returns all deployments ordered by start time descending.
+func (e *Engine) ListDeployments() []*storage.Deployment {
+	deployments, err := e.store.List()
+	if err != nil {
+		log.Printf("Warning: could not list deployments from store: %v", err)
+		return nil
 	}
-
 	return deployments
 }
 
-// getServiceLock returns or creates a mutex for a service
+// getServiceLock returns or creates a mutex for a service.
 func (e *Engine) getServiceLock(serviceName string) *sync.Mutex {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -349,18 +328,14 @@ func (e *Engine) getServiceLock(serviceName string) *sync.Mutex {
 	return lock
 }
 
-// updateDeployment updates a deployment with a function
-func (e *Engine) updateDeployment(id string, fn func(*Deployment)) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if deployment, ok := e.deployments[id]; ok {
-		fn(deployment)
+// updateDeployment applies fn to the stored deployment and logs a warning on error.
+func (e *Engine) updateDeployment(id string, fn func(*storage.Deployment)) {
+	if err := e.store.Update(id, fn); err != nil {
+		log.Printf("Warning: could not update deployment %q in store: %v", id, err)
 	}
 }
 
-// generateDeploymentID generates a unique deployment ID
+// generateDeploymentID generates a unique deployment ID based on nanosecond time.
 func generateDeploymentID() string {
-	// Simple implementation - in production you might want something more robust
 	return fmt.Sprintf("dep_%d", time.Now().UnixNano())
 }

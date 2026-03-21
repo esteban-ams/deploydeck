@@ -14,6 +14,7 @@ import (
 	"github.com/esteban-ams/deploydeck/internal/deploy"
 	"github.com/esteban-ams/deploydeck/internal/ipwhitelist"
 	"github.com/esteban-ams/deploydeck/internal/ratelimit"
+	"github.com/esteban-ams/deploydeck/internal/storage"
 	"github.com/esteban-ams/deploydeck/internal/webhook"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -55,7 +56,21 @@ func runServer(cmd *cobra.Command, args []string) error {
 		log.Printf("  - %s", name)
 	}
 
-	engine := deploy.NewEngine(cfg)
+	var store storage.Storage
+	if cfg.Storage.DBPath != "" {
+		s, err := storage.NewSQLiteStorage(cfg.Storage.DBPath)
+		if err != nil {
+			return fmt.Errorf("failed to open storage at %q: %w", cfg.Storage.DBPath, err)
+		}
+		defer s.Close() //nolint:errcheck
+		store = s
+		log.Printf("Persistent storage: %s", cfg.Storage.DBPath)
+	} else {
+		store = storage.NewMemoryStorage()
+		log.Printf("Persistent storage: disabled (in-memory only)")
+	}
+
+	engine := deploy.NewEngine(cfg, store)
 	handler := webhook.NewHandler(cfg, engine, version)
 
 	e := echo.New()

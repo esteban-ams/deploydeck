@@ -36,6 +36,11 @@ logging:
   level: "info"   # debug, info, warn, error
   format: "text"  # json or text
 
+# storage:
+#   db_path: ""  # Path to SQLite database file. Empty = in-memory (history lost on restart).
+#   # Example: db_path: "/var/lib/deploydeck/deployments.db"
+#   # Override: DEPLOYDECK_DB_PATH env var
+
 services:
   # Example service — pull mode (default)
   # Pulls pre-built images from a registry, then deploys
