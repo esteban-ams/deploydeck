@@ -1,11 +1,14 @@
 package docker
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 // Client handles Docker and Docker Compose operations
@@ -24,8 +27,9 @@ type ComposeOptions struct {
 	Env         map[string]string
 }
 
-// ComposePull executes 'docker compose pull' for a service
-func (c *Client) ComposePull(ctx context.Context, opts ComposeOptions) error {
+// ComposePull executes 'docker compose pull' for a service.
+// If logFn is non-nil it is called for each line of output (stdout and stderr).
+func (c *Client) ComposePull(ctx context.Context, opts ComposeOptions, logFn func(string)) error {
 	args := []string{"compose"}
 
 	if opts.ComposeFile != "" {
@@ -39,24 +43,22 @@ func (c *Client) ComposePull(ctx context.Context, opts ComposeOptions) error {
 		cmd.Dir = opts.WorkingDir
 	}
 
-	// Set environment variables
 	if len(opts.Env) > 0 {
 		cmd.Env = append(cmd.Environ(), formatEnv(opts.Env)...)
 	}
 
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
+	stderr, err := runWithLogging(cmd, logFn)
+	if err != nil {
 		return fmt.Errorf("docker compose pull failed for service %q (compose file: %q): %w\nstderr: %s",
-			opts.Service, opts.ComposeFile, err, stderr.String())
+			opts.Service, opts.ComposeFile, err, stderr)
 	}
 
 	return nil
 }
 
-// ComposeBuild executes 'docker compose build' for a service
-func (c *Client) ComposeBuild(ctx context.Context, opts ComposeOptions) error {
+// ComposeBuild executes 'docker compose build' for a service.
+// If logFn is non-nil it is called for each line of output (stdout and stderr).
+func (c *Client) ComposeBuild(ctx context.Context, opts ComposeOptions, logFn func(string)) error {
 	args := []string{"compose"}
 
 	if opts.ComposeFile != "" {
@@ -70,24 +72,22 @@ func (c *Client) ComposeBuild(ctx context.Context, opts ComposeOptions) error {
 		cmd.Dir = opts.WorkingDir
 	}
 
-	// Set environment variables
 	if len(opts.Env) > 0 {
 		cmd.Env = append(cmd.Environ(), formatEnv(opts.Env)...)
 	}
 
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
+	stderr, err := runWithLogging(cmd, logFn)
+	if err != nil {
 		return fmt.Errorf("docker compose build failed for service %q (compose file: %q): %w\nstderr: %s",
-			opts.Service, opts.ComposeFile, err, stderr.String())
+			opts.Service, opts.ComposeFile, err, stderr)
 	}
 
 	return nil
 }
 
-// ComposeUp executes 'docker compose up -d' for a service
-func (c *Client) ComposeUp(ctx context.Context, opts ComposeOptions) error {
+// ComposeUp executes 'docker compose up -d' for a service.
+// If logFn is non-nil it is called for each line of output (stdout and stderr).
+func (c *Client) ComposeUp(ctx context.Context, opts ComposeOptions, logFn func(string)) error {
 	args := []string{"compose"}
 
 	if opts.ComposeFile != "" {
@@ -101,20 +101,68 @@ func (c *Client) ComposeUp(ctx context.Context, opts ComposeOptions) error {
 		cmd.Dir = opts.WorkingDir
 	}
 
-	// Set environment variables
 	if len(opts.Env) > 0 {
 		cmd.Env = append(cmd.Environ(), formatEnv(opts.Env)...)
 	}
 
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
+	stderr, err := runWithLogging(cmd, logFn)
+	if err != nil {
 		return fmt.Errorf("docker compose up failed for service %q (compose file: %q): %w\nstderr: %s",
-			opts.Service, opts.ComposeFile, err, stderr.String())
+			opts.Service, opts.ComposeFile, err, stderr)
 	}
 
 	return nil
+}
+
+// runWithLogging runs cmd, scanning its combined stdout+stderr line by line.
+// Each line is passed to logFn (if non-nil) as it arrives.
+// The function returns the stderr content (for error messages) and any error
+// from cmd.Run(). The returned stderr string is always populated regardless of
+// whether logFn is set.
+func runWithLogging(cmd *exec.Cmd, logFn func(string)) (string, error) {
+	// Pipe for stderr — always captured for the error message.
+	var stderrBuf bytes.Buffer
+
+	if logFn == nil {
+		// Fast path: no live streaming needed.
+		cmd.Stderr = &stderrBuf
+		err := cmd.Run()
+		return stderrBuf.String(), err
+	}
+
+	// Slow path: stream both stdout and stderr line by line.
+	// Use a single pipe so lines from both streams are delivered in order.
+	pr, pw := io.Pipe()
+
+	// stderr is tee'd: lines go to the pipe (for logFn) and also into
+	// stderrBuf (for the error message).
+	stderrWriter := io.MultiWriter(pw, &stderrBuf)
+	cmd.Stdout = pw
+	cmd.Stderr = stderrWriter
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(pr)
+		for scanner.Scan() {
+			logFn(scanner.Text())
+		}
+	}()
+
+	// Start the command before we can wait on it.
+	if err := cmd.Start(); err != nil {
+		pw.CloseWithError(err) //nolint:errcheck
+		wg.Wait()
+		return stderrBuf.String(), err
+	}
+
+	runErr := cmd.Wait()
+	// Close the write end so the scanner goroutine sees EOF and exits.
+	pw.Close() //nolint:errcheck
+	wg.Wait()
+
+	return stderrBuf.String(), runErr
 }
 
 // GetCurrentImage returns the current image for a container

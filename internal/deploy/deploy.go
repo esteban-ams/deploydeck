@@ -87,6 +87,14 @@ func (e *Engine) Deploy(ctx context.Context, serviceName string, opts DeployOpti
 	return deployment, nil
 }
 
+// appendLog appends a log line to the deployment record and logs it.
+func (e *Engine) appendLog(id, line string) {
+	log.Printf("[deployment %s] %s", id, line)
+	if err := e.store.AppendLog(id, line); err != nil {
+		log.Printf("Warning: could not append log to deployment %q: %v", id, err)
+	}
+}
+
 // executeDeploy performs the actual deployment.
 func (e *Engine) executeDeploy(ctx context.Context, deployment *storage.Deployment, svcCfg config.ServiceConfig, opts DeployOptions) {
 	// Update status to running
@@ -94,6 +102,9 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *storage.Deployme
 		d.Status = storage.StatusRunning
 	})
 
+	logFn := func(line string) { e.appendLog(deployment.ID, line) }
+
+	e.appendLog(deployment.ID, fmt.Sprintf("Starting %s mode deployment for service %q", svcCfg.Mode, deployment.Service))
 	log.Printf("Starting deployment %s for service %s (mode: %s)", deployment.ID, deployment.Service, svcCfg.Mode)
 
 	dockerOpts := docker.ComposeOptions{
@@ -128,6 +139,7 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *storage.Deployme
 				if tagErr != nil {
 					log.Printf("Warning: could not tag rollback image for %s: %v", deployment.Service, tagErr)
 				} else {
+					e.appendLog(deployment.ID, fmt.Sprintf("Saved rollback snapshot: %s -> %s", currentImage, rollbackTag))
 					log.Printf("Saved current image for rollback: %s", currentImage)
 					log.Printf("Tagged rollback image: %s -> %s", currentImage, rollbackTag)
 				}
@@ -146,6 +158,7 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *storage.Deployme
 	switch svcCfg.Mode {
 	case config.DeployModeBuild:
 		// Clone repository
+		e.appendLog(deployment.ID, fmt.Sprintf("Cloning repository (branch: %q)", opts.Branch))
 		log.Printf("Cloning repository for service %s (branch: %s)", deployment.Service, opts.Branch)
 		cloneOpts := git.CloneOptions{
 			URL:        opts.CloneURL,
@@ -157,41 +170,48 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *storage.Deployme
 			e.handleDeploymentFailure(current, "clone", err, svcCfg)
 			return
 		}
+		e.appendLog(deployment.ID, "Repository cloned successfully")
 
 		// Build image
+		e.appendLog(deployment.ID, "Building image with docker compose build")
 		log.Printf("Building image for service %s", deployment.Service)
-		if err := e.dockerClient.ComposeBuild(ctx, dockerOpts); err != nil {
+		if err := e.dockerClient.ComposeBuild(ctx, dockerOpts, logFn); err != nil {
 			e.handleDeploymentFailure(current, "build", err, svcCfg)
 			return
 		}
 
 	default:
 		// Pull mode (default)
+		e.appendLog(deployment.ID, "Pulling image with docker compose pull")
 		log.Printf("Pulling image for service %s", deployment.Service)
-		if err := e.dockerClient.ComposePull(ctx, dockerOpts); err != nil {
+		if err := e.dockerClient.ComposePull(ctx, dockerOpts, logFn); err != nil {
 			e.handleDeploymentFailure(current, "pull", err, svcCfg)
 			return
 		}
 	}
 
 	// Step 3: Deploy (docker compose up -d) — same for both modes
+	e.appendLog(deployment.ID, "Starting containers with docker compose up -d")
 	log.Printf("Deploying service %s", deployment.Service)
-	if err := e.dockerClient.ComposeUp(ctx, dockerOpts); err != nil {
+	if err := e.dockerClient.ComposeUp(ctx, dockerOpts, logFn); err != nil {
 		e.handleDeploymentFailure(current, "up", err, svcCfg)
 		return
 	}
 
 	// Step 4: Health check — same for both modes
 	if svcCfg.HealthCheck.Enabled {
+		e.appendLog(deployment.ID, fmt.Sprintf("Running health check at %s", svcCfg.HealthCheck.URL))
 		log.Printf("Running health check for service %s", deployment.Service)
 		if err := e.healthChecker.Wait(ctx, svcCfg.HealthCheck); err != nil {
 			e.handleDeploymentFailure(current, "health_check", err, svcCfg)
 			return
 		}
+		e.appendLog(deployment.ID, "Health check passed")
 		log.Printf("Health check passed for service %s", deployment.Service)
 	}
 
 	// Step 5: Mark deployment as successful
+	e.appendLog(deployment.ID, "Deployment succeeded")
 	now := time.Now()
 	e.updateDeployment(deployment.ID, func(d *storage.Deployment) {
 		d.Status = storage.StatusSuccess
@@ -265,7 +285,7 @@ func (e *Engine) rollback(ctx context.Context, deployment *storage.Deployment, s
 		log.Printf("Restored rollback image: %s -> %s", deployment.RollbackTag, deployment.PreviousImage)
 	}
 
-	if err := e.dockerClient.ComposeUp(ctx, dockerOpts); err != nil {
+	if err := e.dockerClient.ComposeUp(ctx, dockerOpts, nil); err != nil {
 		return fmt.Errorf("docker compose up failed during rollback of service %q: %w", deployment.Service, err)
 	}
 

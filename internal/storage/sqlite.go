@@ -23,6 +23,13 @@ CREATE TABLE IF NOT EXISTS deployments (
     error_message  TEXT    NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_deployments_service ON deployments(service);
+CREATE TABLE IF NOT EXISTS deployment_logs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    deployment_id TEXT    NOT NULL,
+    line          TEXT    NOT NULL,
+    logged_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_logs_deployment_id ON deployment_logs(deployment_id);
 `
 
 // SQLiteStorage is a persistent Storage implementation backed by SQLite.
@@ -143,7 +150,42 @@ func (s *SQLiteStorage) get(id string) (*Deployment, error) {
 		       started_at, completed_at, error_message
 		FROM deployments WHERE id = ?`, id)
 
-	return scanDeployment(row)
+	d, err := scanDeployment(row)
+	if err != nil {
+		return nil, err
+	}
+
+	logs, err := s.getLogs(d.ID)
+	if err != nil {
+		return nil, err
+	}
+	d.Logs = logs
+	return d, nil
+}
+
+// getLogs returns all log lines for the given deployment id, ordered by id ASC.
+// Callers must hold s.mu.
+func (s *SQLiteStorage) getLogs(deploymentID string) ([]string, error) {
+	rows, err := s.db.Query(`
+		SELECT line FROM deployment_logs
+		WHERE deployment_id = ? ORDER BY id ASC`, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("query logs for deployment %q: %w", deploymentID, err)
+	}
+	defer rows.Close()
+
+	var lines []string
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			return nil, fmt.Errorf("scan log line for deployment %q: %w", deploymentID, err)
+		}
+		lines = append(lines, line)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate log rows for deployment %q: %w", deploymentID, err)
+	}
+	return lines, nil
 }
 
 // List returns all deployments ordered by started_at descending.
@@ -166,6 +208,11 @@ func (s *SQLiteStorage) List() ([]*Deployment, error) {
 		if err != nil {
 			return nil, fmt.Errorf("list deployments: scan row: %w", err)
 		}
+		logs, err := s.getLogs(d.ID)
+		if err != nil {
+			return nil, fmt.Errorf("list deployments: fetch logs for %q: %w", d.ID, err)
+		}
+		d.Logs = logs
 		result = append(result, d)
 	}
 	if err := rows.Err(); err != nil {
@@ -193,6 +240,31 @@ func (s *SQLiteStorage) GetLatestByService(service string) (*Deployment, error) 
 		return nil, fmt.Errorf("get latest deployment for service %q: %w", service, err)
 	}
 	return d, nil
+}
+
+// AppendLog inserts a log line for the deployment with the given id.
+// Returns an error if the id does not exist.
+func (s *SQLiteStorage) AppendLog(id string, line string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Verify the deployment exists before inserting.
+	var count int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM deployments WHERE id = ?`, id).Scan(&count); err != nil {
+		return fmt.Errorf("check deployment %q for AppendLog: %w", id, err)
+	}
+	if count == 0 {
+		return fmt.Errorf("deployment %q not found", id)
+	}
+
+	_, err := s.db.Exec(`
+		INSERT INTO deployment_logs (deployment_id, line, logged_at) VALUES (?, ?, ?)`,
+		id, line, time.Now().UnixNano(),
+	)
+	if err != nil {
+		return fmt.Errorf("append log to deployment %q: %w", id, err)
+	}
+	return nil
 }
 
 // Close releases the database connection.

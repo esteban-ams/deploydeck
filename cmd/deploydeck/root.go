@@ -83,6 +83,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	api := e.Group("/api")
 	api.GET("/deployments", handler.HandleListDeployments)
+	api.GET("/deployments/:id/logs", handler.HandleGetDeploymentLogs)
 	api.GET("/health", handler.HandleHealth)
 
 	// Rate limiting and IP whitelisting apply only to the mutating webhook endpoints.

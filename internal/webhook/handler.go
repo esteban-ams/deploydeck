@@ -261,6 +261,38 @@ func (h *Handler) HandleListDeployments(c echo.Context) error {
 	})
 }
 
+// DeploymentLogsResponse represents the response for the deployment logs endpoint.
+type DeploymentLogsResponse struct {
+	DeploymentID string   `json:"deployment_id"`
+	Service      string   `json:"service"`
+	Status       string   `json:"status"`
+	Logs         []string `json:"logs"`
+}
+
+// HandleGetDeploymentLogs handles GET /api/deployments/:id/logs
+func (h *Handler) HandleGetDeploymentLogs(c echo.Context) error {
+	id := c.Param("id")
+
+	deployment, err := h.engine.GetDeployment(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": fmt.Sprintf("deployment %q not found", id),
+		})
+	}
+
+	logs := deployment.Logs
+	if logs == nil {
+		logs = []string{}
+	}
+
+	return c.JSON(http.StatusOK, DeploymentLogsResponse{
+		DeploymentID: deployment.ID,
+		Service:      deployment.Service,
+		Status:       string(deployment.Status),
+		Logs:         logs,
+	})
+}
+
 // HealthResponse represents the health check response
 type HealthResponse struct {
 	Status  string `json:"status"`

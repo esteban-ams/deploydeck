@@ -22,10 +22,10 @@ func NewMemoryStorage() *MemoryStorage {
 
 // Save inserts or replaces the deployment in memory.
 func (m *MemoryStorage) Save(d *Deployment) error {
-	// Copy so callers cannot mutate the stored record through the pointer.
-	cp := *d
+	// Deep-copy so callers cannot mutate the stored record through the pointer.
+	cp := copyDeployment(d)
 	m.mu.Lock()
-	m.deployments[d.ID] = &cp
+	m.deployments[d.ID] = cp
 	m.mu.Unlock()
 	return nil
 }
@@ -53,9 +53,8 @@ func (m *MemoryStorage) Get(id string) (*Deployment, error) {
 	if !ok {
 		return nil, fmt.Errorf("deployment %q not found", id)
 	}
-	// Return a copy so callers cannot mutate internal state.
-	cp := *d
-	return &cp, nil
+	// Return a deep copy so callers cannot mutate internal state.
+	return copyDeployment(d), nil
 }
 
 // List returns all deployments ordered by StartedAt descending.
@@ -63,8 +62,7 @@ func (m *MemoryStorage) List() ([]*Deployment, error) {
 	m.mu.RLock()
 	result := make([]*Deployment, 0, len(m.deployments))
 	for _, d := range m.deployments {
-		cp := *d
-		result = append(result, &cp)
+		result = append(result, copyDeployment(d))
 	}
 	m.mu.RUnlock()
 
@@ -86,14 +84,36 @@ func (m *MemoryStorage) GetLatestByService(service string) (*Deployment, error) 
 			continue
 		}
 		if latest == nil || d.StartedAt.After(latest.StartedAt) {
-			cp := *d
-			latest = &cp
+			latest = d
 		}
 	}
 	if latest == nil {
 		return nil, fmt.Errorf("service %q: %w", service, ErrNotFound)
 	}
-	return latest, nil
+	return copyDeployment(latest), nil
+}
+
+// AppendLog appends a single log line to the deployment with the given id.
+func (m *MemoryStorage) AppendLog(id string, line string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	d, ok := m.deployments[id]
+	if !ok {
+		return fmt.Errorf("deployment %q not found", id)
+	}
+	d.Logs = append(d.Logs, line)
+	return nil
+}
+
+// copyDeployment returns a deep copy of d, including its Logs slice.
+func copyDeployment(d *Deployment) *Deployment {
+	cp := *d
+	if d.Logs != nil {
+		cp.Logs = make([]string, len(d.Logs))
+		copy(cp.Logs, d.Logs)
+	}
+	return &cp
 }
 
 // Close is a no-op for the in-memory backend.

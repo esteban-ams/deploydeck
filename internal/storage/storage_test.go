@@ -246,6 +246,81 @@ func testStorage(t *testing.T, s storage.Storage) {
 			t.Errorf("expected ErrNotFound, got: %v", err)
 		}
 	})
+
+	t.Run("AppendLog adds lines in order and Get returns them", func(t *testing.T) {
+		t.Parallel()
+		d := &storage.Deployment{
+			ID:        "dep_logs_order",
+			Service:   "svc-logs",
+			Status:    storage.StatusRunning,
+			StartedAt: time.Unix(0, 1711000600000000000),
+		}
+		if err := s.Save(d); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		lines := []string{"line one", "line two", "line three"}
+		for _, line := range lines {
+			if err := s.AppendLog(d.ID, line); err != nil {
+				t.Fatalf("AppendLog(%q): %v", line, err)
+			}
+		}
+
+		got, err := s.Get(d.ID)
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		if len(got.Logs) != len(lines) {
+			t.Fatalf("Logs: want %d lines, got %d", len(lines), len(got.Logs))
+		}
+		for i, want := range lines {
+			if got.Logs[i] != want {
+				t.Errorf("Logs[%d]: want %q, got %q", i, want, got.Logs[i])
+			}
+		}
+	})
+
+	t.Run("AppendLog on missing ID returns error", func(t *testing.T) {
+		t.Parallel()
+		err := s.AppendLog("nonexistent_dep_xyz", "some log line")
+		if err == nil {
+			t.Fatal("expected error for missing deployment id, got nil")
+		}
+	})
+
+	t.Run("Get returns Logs populated after AppendLog", func(t *testing.T) {
+		t.Parallel()
+		d := &storage.Deployment{
+			ID:        "dep_logs_populated",
+			Service:   "svc-logs2",
+			Status:    storage.StatusPending,
+			StartedAt: time.Unix(0, 1711000700000000000),
+		}
+		if err := s.Save(d); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		// No logs yet — Logs should be nil or empty.
+		got, err := s.Get(d.ID)
+		if err != nil {
+			t.Fatalf("Get (no logs): %v", err)
+		}
+		if len(got.Logs) != 0 {
+			t.Errorf("Logs before append: want empty, got %v", got.Logs)
+		}
+
+		if err := s.AppendLog(d.ID, "hello"); err != nil {
+			t.Fatalf("AppendLog: %v", err)
+		}
+
+		got, err = s.Get(d.ID)
+		if err != nil {
+			t.Fatalf("Get (after append): %v", err)
+		}
+		if len(got.Logs) != 1 || got.Logs[0] != "hello" {
+			t.Errorf("Logs after append: want [\"hello\"], got %v", got.Logs)
+		}
+	})
 }
 
 // assertDeploymentEqual fails the test if two Deployment values differ.

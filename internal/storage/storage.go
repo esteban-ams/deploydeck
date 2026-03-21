@@ -28,6 +28,7 @@ type Deployment struct {
 	StartedAt     time.Time
 	CompletedAt   *time.Time
 	ErrorMessage  string
+	Logs          []string
 }
 
 // Storage is the interface for persisting deployment records.
@@ -44,6 +45,9 @@ type Storage interface {
 	// GetLatestByService returns the most recent deployment for the given
 	// service name, or ErrNotFound if no deployments exist for that service.
 	GetLatestByService(service string) (*Deployment, error)
+	// AppendLog appends a single log line to the deployment with the given id.
+	// Returns an error if the id does not exist.
+	AppendLog(id string, line string) error
 	// Close releases any resources held by the storage backend.
 	Close() error
 }
