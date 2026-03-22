@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/esteban-ams/deploydeck/internal/config"
+	"github.com/esteban-ams/deploydeck/internal/dashboard"
 	"github.com/esteban-ams/deploydeck/internal/deploy"
 	"github.com/esteban-ams/deploydeck/internal/ipwhitelist"
+	"github.com/esteban-ams/deploydeck/internal/notify"
 	"github.com/esteban-ams/deploydeck/internal/ratelimit"
 	"github.com/esteban-ams/deploydeck/internal/storage"
 	"github.com/esteban-ams/deploydeck/internal/webhook"
@@ -81,7 +83,26 @@ func runServer(cmd *cobra.Command, args []string) error {
 		log.Printf("Persistent storage: disabled (in-memory only)")
 	}
 
-	engine := deploy.NewEngine(cfg, store)
+	var notifiers []notify.Notifier
+	if cfg.Notifications.Slack.WebhookURL != "" {
+		notifiers = append(notifiers, notify.NewSlackNotifier(cfg.Notifications.Slack.WebhookURL))
+		log.Printf("Notifications: Slack enabled")
+	}
+	if cfg.Notifications.Discord.WebhookURL != "" {
+		notifiers = append(notifiers, notify.NewDiscordNotifier(cfg.Notifications.Discord.WebhookURL))
+		log.Printf("Notifications: Discord enabled")
+	}
+	if cfg.Notifications.Webhook.URL != "" {
+		notifiers = append(notifiers, notify.NewWebhookNotifier(
+			cfg.Notifications.Webhook.URL,
+			cfg.Notifications.Webhook.Method,
+			cfg.Notifications.Webhook.Headers,
+		))
+		log.Printf("Notifications: generic webhook enabled (%s)", cfg.Notifications.Webhook.URL)
+	}
+	dispatcher := notify.NewDispatcher(notifiers...)
+
+	engine := deploy.NewEngine(cfg, store, dispatcher)
 	handler := webhook.NewHandler(cfg, engine, version)
 
 	e := echo.New()
@@ -118,6 +139,12 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	webhookGroup.POST("/deploy/:service", handler.HandleDeploy)
 	webhookGroup.POST("/rollback/:service", handler.HandleRollback)
+
+	// Dashboard UI
+	e.GET("/dashboard", func(c echo.Context) error {
+		return c.Redirect(http.StatusMovedPermanently, "/dashboard/")
+	})
+	e.GET("/dashboard/*", echo.WrapHandler(http.StripPrefix("/dashboard/", dashboard.Handler())))
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Server listening on %s", addr)

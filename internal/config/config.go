@@ -28,13 +28,45 @@ type StorageConfig struct {
 
 // Config represents the complete DeployDeck configuration
 type Config struct {
-	Server    ServerConfig             `yaml:"server"`
-	Auth      AuthConfig               `yaml:"auth"`
-	RateLimit RateLimitConfig          `yaml:"rate_limit"`
-	Dashboard DashboardConfig          `yaml:"dashboard"`
-	Logging   LoggingConfig            `yaml:"logging"`
-	Storage   StorageConfig            `yaml:"storage"`
-	Services  map[string]ServiceConfig `yaml:"services"`
+	Server        ServerConfig             `yaml:"server"`
+	Auth          AuthConfig               `yaml:"auth"`
+	RateLimit     RateLimitConfig          `yaml:"rate_limit"`
+	Dashboard     DashboardConfig          `yaml:"dashboard"`
+	Logging       LoggingConfig            `yaml:"logging"`
+	Storage       StorageConfig            `yaml:"storage"`
+	Notifications NotificationsConfig      `yaml:"notifications"`
+	Services      map[string]ServiceConfig `yaml:"services"`
+}
+
+// NotificationsConfig holds deployment notification settings.
+type NotificationsConfig struct {
+	// OnSuccess sends a notification when a deployment succeeds (default: false).
+	OnSuccess bool `yaml:"on_success"`
+	// OnFailure sends a notification when a deployment fails (default: true).
+	OnFailure bool `yaml:"on_failure"`
+	// OnRollback sends a notification when a deployment is rolled back (default: true).
+	OnRollback bool `yaml:"on_rollback"`
+
+	Slack   SlackConfig   `yaml:"slack"`
+	Discord DiscordConfig `yaml:"discord"`
+	Webhook WebhookConfig `yaml:"webhook"`
+}
+
+// SlackConfig holds Slack Incoming Webhook configuration.
+type SlackConfig struct {
+	WebhookURL string `yaml:"webhook_url"`
+}
+
+// DiscordConfig holds Discord webhook configuration.
+type DiscordConfig struct {
+	WebhookURL string `yaml:"webhook_url"`
+}
+
+// WebhookConfig holds generic HTTP webhook configuration.
+type WebhookConfig struct {
+	URL     string            `yaml:"url"`
+	Method  string            `yaml:"method"`
+	Headers map[string]string `yaml:"headers"`
 }
 
 // RateLimitConfig holds rate limiting configuration for webhook endpoints
@@ -224,6 +256,16 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.RateLimit.BurstSize == 0 {
 		cfg.RateLimit.BurstSize = 5
+	}
+
+	// Notification defaults: OnFailure and OnRollback are enabled by default.
+	// We apply these when the section is entirely absent (all booleans are false
+	// and no notifier URLs are configured), matching the rate_limit pattern.
+	n := &cfg.Notifications
+	if !n.OnSuccess && !n.OnFailure && !n.OnRollback &&
+		n.Slack.WebhookURL == "" && n.Discord.WebhookURL == "" && n.Webhook.URL == "" {
+		n.OnFailure = true
+		n.OnRollback = true
 	}
 
 	// Apply defaults for each service

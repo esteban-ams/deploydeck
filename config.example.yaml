@@ -41,6 +41,27 @@ logging:
 #   # Example: db_path: "/var/lib/deploydeck/deployments.db"
 #   # Override: DEPLOYDECK_DB_PATH env var
 
+# Deployment notifications — fired when a deployment reaches a terminal state.
+# Each notifier runs in a goroutine with a 10s timeout (non-blocking).
+# Defaults: on_failure and on_rollback are true; on_success is false.
+# notifications:
+#   on_success: false   # notify when a deployment succeeds
+#   on_failure: true    # notify when a deployment fails
+#   on_rollback: true   # notify when a deployment is rolled back
+#
+#   slack:
+#     webhook_url: "https://hooks.slack.com/services/T.../B.../..."
+#
+#   discord:
+#     webhook_url: "https://discord.com/api/webhooks/..."
+#
+#   webhook:
+#     url: "https://example.com/hooks/deploydeck"
+#     method: "POST"       # optional, defaults to POST
+#     headers:             # optional custom headers (e.g. for auth)
+#       X-Api-Key: "secret"
+#       X-Source: "deploydeck"
+
 services:
   # Example service — pull mode (default)
   # Pulls pre-built images from a registry, then deploys

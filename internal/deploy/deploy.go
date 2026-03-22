@@ -10,22 +10,28 @@ import (
 	"github.com/esteban-ams/deploydeck/internal/config"
 	"github.com/esteban-ams/deploydeck/internal/docker"
 	"github.com/esteban-ams/deploydeck/internal/git"
+	"github.com/esteban-ams/deploydeck/internal/notify"
 	"github.com/esteban-ams/deploydeck/internal/storage"
 )
 
 // Engine orchestrates deployments.
 type Engine struct {
-	mu           sync.Mutex
-	serviceLocks map[string]*sync.Mutex
-	store        storage.Storage
-	dockerClient *docker.Client
-	gitClient    *git.Client
+	mu            sync.Mutex
+	serviceLocks  map[string]*sync.Mutex
+	store         storage.Storage
+	dockerClient  *docker.Client
+	gitClient     *git.Client
 	healthChecker *HealthChecker
 	config        *config.Config
+	dispatcher    *notify.Dispatcher
 }
 
 // NewEngine creates a new deployment engine backed by the given store.
-func NewEngine(cfg *config.Config, store storage.Storage) *Engine {
+// dispatcher may be nil; a nil Dispatcher silently skips notifications.
+func NewEngine(cfg *config.Config, store storage.Storage, dispatcher *notify.Dispatcher) *Engine {
+	if dispatcher == nil {
+		dispatcher = notify.NewDispatcher()
+	}
 	return &Engine{
 		serviceLocks:  make(map[string]*sync.Mutex),
 		store:         store,
@@ -33,6 +39,7 @@ func NewEngine(cfg *config.Config, store storage.Storage) *Engine {
 		gitClient:     git.NewClient(),
 		healthChecker: NewHealthChecker(),
 		config:        cfg,
+		dispatcher:    dispatcher,
 	}
 }
 
@@ -220,6 +227,16 @@ func (e *Engine) executeDeploy(ctx context.Context, deployment *storage.Deployme
 
 	log.Printf("Deployment %s completed successfully", deployment.ID)
 
+	if e.config.Notifications.OnSuccess {
+		e.dispatcher.Notify(notify.Event{
+			Service:  deployment.Service,
+			Status:   string(storage.StatusSuccess),
+			Image:    deployment.Image,
+			Duration: time.Since(deployment.StartedAt),
+			DeployID: deployment.ID,
+		})
+	}
+
 	// Step 6: Clean up old rollback tags
 	if svcCfg.Rollback.Enabled && svcCfg.Rollback.KeepImages > 0 {
 		e.cleanupOldRollbackTags(ctx, deployment.Service, svcCfg.Rollback.KeepImages)
@@ -266,6 +283,29 @@ func (e *Engine) handleDeploymentFailure(deployment *storage.Deployment, phase s
 		d.ErrorMessage = errMsg
 		d.CompletedAt = &now
 	})
+
+	switch finalStatus {
+	case storage.StatusFailed:
+		if e.config.Notifications.OnFailure {
+			e.dispatcher.Notify(notify.Event{
+				Service:  deployment.Service,
+				Status:   string(finalStatus),
+				Image:    deployment.Image,
+				Duration: time.Since(deployment.StartedAt),
+				DeployID: deployment.ID,
+			})
+		}
+	case storage.StatusRolledBack:
+		if e.config.Notifications.OnRollback {
+			e.dispatcher.Notify(notify.Event{
+				Service:  deployment.Service,
+				Status:   string(finalStatus),
+				Image:    deployment.Image,
+				Duration: time.Since(deployment.StartedAt),
+				DeployID: deployment.ID,
+			})
+		}
+	}
 }
 
 // rollback reverts to the previously tagged rollback image.
@@ -371,6 +411,15 @@ func (e *Engine) Rollback(ctx context.Context, serviceName string) (*storage.Dep
 			d.ErrorMessage = errMsg
 			d.CompletedAt = &completed
 		})
+		if e.config.Notifications.OnFailure {
+			e.dispatcher.Notify(notify.Event{
+				Service:  serviceName,
+				Status:   string(storage.StatusFailed),
+				Image:    deployment.Image,
+				Duration: time.Since(deployment.StartedAt),
+				DeployID: deployment.ID,
+			})
+		}
 		return nil, fmt.Errorf("%s", errMsg)
 	}
 
@@ -380,6 +429,15 @@ func (e *Engine) Rollback(ctx context.Context, serviceName string) (*storage.Dep
 		d.Status = storage.StatusRolledBack
 		d.CompletedAt = &completed
 	})
+	if e.config.Notifications.OnRollback {
+		e.dispatcher.Notify(notify.Event{
+			Service:  serviceName,
+			Status:   string(storage.StatusRolledBack),
+			Image:    deployment.Image,
+			Duration: time.Since(deployment.StartedAt),
+			DeployID: deployment.ID,
+		})
+	}
 
 	result, err := e.store.Get(deployment.ID)
 	if err != nil {

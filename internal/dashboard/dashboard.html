@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeployDeck</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0f1117;
+      --surface:    #1a1d27;
+      --surface-2:  #21253a;
+      --border:     #2a2e42;
+      --coral:      #ff6b6b;
+      --coral-dim:  rgba(255,107,107,0.12);
+      --coral-glow: rgba(255,107,107,0.25);
+      --text:       #e8eaf0;
+      --text-muted: #7a7f99;
+      --text-dim:   #4a4f6a;
+      --green:      #2ecc71;
+      --red:        #e74c3c;
+      --yellow:     #f39c12;
+      --orange:     #e67e22;
+      --grey:       #95a5a6;
+      --radius:     10px;
+      --radius-sm:  6px;
+      --shadow:     0 4px 24px rgba(0,0,0,0.4);
+      --font:       -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      --mono:       'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    html { font-size: 14px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+    .page { max-width: 1280px; margin: 0 auto; padding: 0 24px 48px; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 20px 0 18px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--coral);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-icon svg { width: 20px; height: 20px; fill: #fff; }
+    .logo-text { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+    .version-badge {
+      font-size: 0.72rem; font-family: var(--mono);
+      background: var(--coral-dim); color: var(--coral);
+      border: 1px solid var(--coral-glow);
+      padding: 2px 8px; border-radius: 20px; font-weight: 500;
+    }
+    .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .secret-form { display: flex; align-items: center; gap: 8px; }
+    .secret-label { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+    .secret-input {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--mono); font-size: 0.78rem;
+      padding: 6px 10px; border-radius: var(--radius-sm);
+      width: 180px; outline: none; transition: border-color 0.15s;
+    }
+    .secret-input:focus { border-color: var(--coral); }
+    .refresh-info { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: var(--radius-sm);
+      font-size: 0.8rem; font-weight: 500; font-family: var(--font);
+      cursor: pointer; border: none;
+      transition: opacity 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--coral); color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+    .btn-ghost {
+      background: var(--surface-2); color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text-dim); }
+    .btn-danger {
+      background: rgba(231,76,60,0.12); color: var(--red);
+      border: 1px solid rgba(231,76,60,0.3);
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(231,76,60,0.2); }
+    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+
+    /* Banner */
+    .banner {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(243,156,18,0.1); border: 1px solid rgba(243,156,18,0.3);
+      color: #f5c842; padding: 10px 16px; border-radius: var(--radius);
+      font-size: 0.82rem; margin-bottom: 24px;
+    }
+    .banner.hidden { display: none; }
+
+    /* Sections */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title {
+      font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
+    }
+    .section-count {
+      font-size: 0.72rem; color: var(--text-dim);
+      background: var(--surface-2); padding: 2px 8px;
+      border-radius: 20px; border: 1px solid var(--border);
+    }
+
+    /* Services grid */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px; margin-bottom: 40px;
+    }
+    .service-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .service-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; width: 3px; height: 100%;
+      border-radius: var(--radius) 0 0 var(--radius);
+    }
+    .service-card.status-success::before    { background: var(--green); }
+    .service-card.status-failed::before     { background: var(--red); }
+    .service-card.status-running::before    { background: var(--yellow); }
+    .service-card.status-rolled_back::before { background: var(--orange); }
+    .service-card.status-pending::before    { background: var(--grey); }
+    .service-card:hover { border-color: var(--text-dim); box-shadow: var(--shadow); }
+
+    .service-card-top {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 8px; margin-bottom: 14px;
+    }
+    .service-name { font-size: 0.95rem; font-weight: 600; color: var(--text); word-break: break-all; }
+
+    /* Status badges */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.7rem; font-weight: 600;
+      padding: 3px 9px; border-radius: 20px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .status-badge .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .badge-success      { background: rgba(46,204,113,0.12); color: var(--green); }
+    .badge-success .dot { background: var(--green); }
+    .badge-failed       { background: rgba(231,76,60,0.12);  color: var(--red); }
+    .badge-failed .dot  { background: var(--red); }
+    .badge-running      { background: rgba(243,156,18,0.12); color: var(--yellow); }
+    .badge-running .dot { background: var(--yellow); animation: pulse 1.2s infinite; }
+    .badge-rolled_back      { background: rgba(230,126,34,0.12); color: var(--orange); }
+    .badge-rolled_back .dot { background: var(--orange); }
+    .badge-pending      { background: rgba(149,165,166,0.12); color: var(--grey); }
+    .badge-pending .dot { background: var(--grey); }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    .service-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .meta-row { display: flex; align-items: baseline; gap: 8px; }
+    .meta-key {
+      font-size: 0.7rem; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      width: 48px; flex-shrink: 0;
+    }
+    .meta-val {
+      font-size: 0.78rem; color: var(--text-muted); font-family: var(--mono);
+      word-break: break-all; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
+    }
+    .meta-val.image { color: var(--coral); }
+
+    .service-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 14px; border-top: 1px solid var(--border);
+    }
+    .time-ago { font-size: 0.72rem; color: var(--text-dim); }
+
+    /* Empty states */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; padding: 48px 24px;
+      text-align: center; color: var(--text-dim);
+      background: var(--surface);
+      border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+    .empty-state svg { opacity: 0.3; }
+    .empty-state p { font-size: 0.82rem; }
+
+    /* Table */
+    .table-wrapper {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 11px 16px; text-align: left;
+      font-size: 0.68rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-dim); background: var(--surface-2);
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.025); }
+    tbody td { padding: 11px 16px; font-size: 0.8rem; color: var(--text-muted); vertical-align: middle; }
+    tbody td.mono { font-family: var(--mono); font-size: 0.75rem; }
+    tbody td.service-col { font-weight: 600; color: var(--text); }
+    .duration-val { font-family: var(--mono); font-size: 0.75rem; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%; max-width: 860px; max-height: 80vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+      transform: translateY(12px); transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .modal-title { font-size: 0.9rem; font-weight: 600; }
+    .modal-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+    .modal-meta-item { font-size: 0.72rem; color: var(--text-dim); font-family: var(--mono); }
+    .modal-close {
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-muted); width: 28px; height: 28px;
+      border-radius: 6px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 1rem; line-height: 1;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .modal-close:hover { color: var(--text); border-color: var(--text-dim); }
+    .modal-body { overflow-y: auto; padding: 16px 0; flex: 1; }
+
+    /* Log viewer */
+    .log-lines { font-family: var(--mono); font-size: 0.73rem; line-height: 1.7; color: #c8cfe8; }
+    .log-line { display: flex; gap: 0; padding: 0 20px; }
+    .log-line:hover { background: rgba(255,255,255,0.03); }
+    .log-num { color: var(--text-dim); min-width: 36px; user-select: none; text-align: right; padding-right: 14px; flex-shrink: 0; }
+    .log-text { word-break: break-all; white-space: pre-wrap; }
+    .log-text.level-error { color: #ff7b72; }
+    .log-text.level-warn  { color: #e3b341; }
+    .log-empty { padding: 32px 20px; text-align: center; color: var(--text-dim); font-family: var(--mono); font-size: 0.78rem; }
+
+    .modal-footer {
+      padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .log-count { font-size: 0.72rem; color: var(--text-dim); }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid var(--border); border-top-color: var(--coral);
+      border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast-container {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 16px;
+      font-size: 0.8rem; color: var(--text);
+      box-shadow: var(--shadow); pointer-events: all;
+      animation: slideIn 0.25s ease; max-width: 320px;
+    }
+    .toast.success { border-color: rgba(46,204,113,0.5); }
+    .toast.error   { border-color: rgba(231,76,60,0.5); color: #ff7b72; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Misc */
+    .divider { height: 1px; background: var(--border); margin: 32px 0; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .header { flex-direction: column; align-items: flex-start; }
+      .header-right { width: 100%; }
+      .secret-input { width: 100%; flex: 1; }
+      .secret-form { width: 100%; }
+      table { display: block; overflow-x: auto; }
+      .modal { max-height: 90vh; }
+    }
+    @media (max-width: 480px) { .page { padding: 0 16px 40px; } }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+        <span class="logo-text">DeployDeck</span>
+      </div>
+      <span class="version-badge" id="version-badge">v&mdash;</span>
+    </div>
+    <div class="header-right">
+      <div class="secret-form">
+        <span class="secret-label">API Secret</span>
+        <input
+          class="secret-input"
+          id="secret-input"
+          type="password"
+          placeholder="your-webhook-secret"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="btn btn-ghost btn-sm" id="save-secret-btn">Save</button>
+      </div>
+      <span class="refresh-info" id="last-updated">&mdash;</span>
+    </div>
+  </header>
+
+  <div class="banner hidden" id="no-secret-banner">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    Enter your API secret above to view deployments.
+  </div>
+
+  <div class="section-header">
+    <span class="section-title">Services</span>
+    <span class="section-count" id="services-count">0</span>
+  </div>
+  <div class="services-grid" id="services-grid">
+    <div class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="20" height="14" rx="2"/>
+        <path d="M8 21h8M12 17v4"/>
+      </svg>
+      <p>No services deployed yet.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section-header">
+    <span class="section-title">Deployment History</span>
+    <span class="section-count" id="history-count">0</span>
+  </div>
+  <div class="table-wrapper" id="history-wrapper">
+    <div class="empty-state" style="border:none; border-radius:0;">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <p>No deployments found.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="log-modal" role="dialog" aria-modal="true" aria-label="Deployment logs">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">Logs</div>
+        <div class="modal-meta" id="modal-meta"></div>
+      </div>
+      <button class="modal-close" id="modal-close-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="log-lines" id="log-lines">
+        <div class="log-empty">Select a deployment to view its logs.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="log-count" id="log-line-count"></span>
+      <button class="btn btn-ghost btn-sm" id="modal-close-footer-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SECRET_KEY       = 'deploydeck_secret';
+  var REFRESH_INTERVAL = 10000;
+
+  var allDeployments = [];
+
+  /* DOM */
+  var secretInput        = document.getElementById('secret-input');
+  var saveSecretBtn      = document.getElementById('save-secret-btn');
+  var lastUpdated        = document.getElementById('last-updated');
+  var versionBadge       = document.getElementById('version-badge');
+  var noSecretBanner     = document.getElementById('no-secret-banner');
+  var servicesGrid       = document.getElementById('services-grid');
+  var servicesCount      = document.getElementById('services-count');
+  var historyWrapper     = document.getElementById('history-wrapper');
+  var historyCount       = document.getElementById('history-count');
+  var logModal           = document.getElementById('log-modal');
+  var modalTitle         = document.getElementById('modal-title');
+  var modalMeta          = document.getElementById('modal-meta');
+  var logLines           = document.getElementById('log-lines');
+  var logLineCount       = document.getElementById('log-line-count');
+  var modalCloseBtn      = document.getElementById('modal-close-btn');
+  var modalCloseFooter   = document.getElementById('modal-close-footer-btn');
+  var toastContainer     = document.getElementById('toast-container');
+
+  /* ---- storage ---- */
+  function getSecret() { return localStorage.getItem(SECRET_KEY) || ''; }
+  function setSecret(v) {
+    if (v) { localStorage.setItem(SECRET_KEY, v); }
+    else   { localStorage.removeItem(SECRET_KEY); }
+  }
+
+  /* ---- format helpers ---- */
+  function formatAgo(iso) {
+    if (!iso) return '\u2014';
+    var diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 5)    return 'just now';
+    if (diff < 60)   return diff + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  function formatDuration(startIso, endIso) {
+    if (!startIso) return '\u2014';
+    var end  = endIso ? new Date(endIso) : new Date();
+    var secs = Math.floor((end - new Date(startIso)) / 1000);
+    if (secs < 0)  return '\u2014';
+    if (secs < 60) return secs + 's';
+    var m = Math.floor(secs / 60);
+    var s = secs % 60;
+    if (m < 60) return s > 0 ? m + 'm ' + s + 's' : m + 'm';
+    var h  = Math.floor(m / 60);
+    var rm = m % 60;
+    return rm > 0 ? h + 'h ' + rm + 'm' : h + 'h';
+  }
+
+  function formatDateTime(iso) {
+    if (!iso) return '\u2014';
+    var d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+         + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function truncate(str, n) {
+    if (!str) return '\u2014';
+    return str.length > n ? str.slice(0, n) + '\u2026' : str;
+  }
+
+  /* ---- safe DOM creation ---- */
+  function esc(str) {
+    /* Used only where we must build attribute strings for data-* or onclick.
+       For text nodes we always use textContent. */
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function setText(el, txt) { el.textContent = txt; }
+
+  /* ---- status badge (DOM, no innerHTML) ---- */
+  function makeBadge(status) {
+    var labels = {
+      success: 'Success', failed: 'Failed', running: 'Running',
+      rolled_back: 'Rolled back', pending: 'Pending'
+    };
+    var span = document.createElement('span');
+    span.className = 'status-badge badge-' + esc(status);
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    span.appendChild(dot);
+    span.appendChild(document.createTextNode(labels[status] || status));
+    return span;
+  }
+
+  /* ---- toast ---- */
+  function showToast(msg, type) {
+    var el = document.createElement('div');
+    el.className = 'toast' + (type ? ' ' + type : '');
+    setText(el, msg);
+    toastContainer.appendChild(el);
+    setTimeout(function () {
+      el.style.transition = 'opacity 0.3s';
+      el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 300);
+    }, 3000);
+  }
+
+  /* ---- API ---- */
+  function apiFetch(path, options) {
+    options = options || {};
+    var secret = getSecret();
+    var headers = { 'Content-Type': 'application/json' };
+    if (secret) { headers['X-DeployDeck-Secret'] = secret; }
+    return fetch(path, Object.assign({}, options, { headers: headers }))
+      .then(function (res) {
+        return res.json().then(function (body) {
+          if (!res.ok) { throw new Error(body.error || ('HTTP ' + res.status)); }
+          return body;
+        });
+      });
+  }
+
+  /* ---- clear helpers ---- */
+  function clearEl(el) {
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+  }
+
+  /* ---- empty state ---- */
+  function makeEmptyState(iconPath, msg, extraStyle) {
+    var wrap = document.createElement('div');
+    wrap.className = 'empty-state fade-in';
+    if (extraStyle) { wrap.setAttribute('style', extraStyle); }
+
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '40');
+    svg.setAttribute('height', '40');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.5');
+    svg.innerHTML = iconPath; /* static trusted SVG paths only */
+
+    var p = document.createElement('p');
+    setText(p, msg);
+    wrap.appendChild(svg);
+    wrap.appendChild(p);
+    return wrap;
+  }
+
+  /* ---- build services grid ---- */
+  function buildServicesGrid(deployments) {
+    var latest = new Map();
+    deployments.forEach(function (d) {
+      if (!latest.has(d.service) ||
+          new Date(d.started_at) > new Date(latest.get(d.service).started_at)) {
+        latest.set(d.service, d);
+      }
+    });
+
+    setText(servicesCount, latest.size);
+    clearEl(servicesGrid);
+
+    if (latest.size === 0) {
+      servicesGrid.appendChild(makeEmptyState(
+        '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+        'No services deployed yet.'
+      ));
+      return;
+    }
+
+    var entries = [];
+    latest.forEach(function (d) { entries.push(d); });
+    entries.sort(function (a, b) { return a.service.localeCompare(b.service); });
+
+    entries.forEach(function (d) {
+      var status     = d.status || 'pending';
+      var image      = d.image  || '\u2014';
+      var mode       = d.mode   || '\u2014';
+      var canRollback = d.rollback_tag && (status === 'success' || status === 'failed');
+
+      /* card */
+      var card = document.createElement('div');
+      card.className = 'service-card status-' + esc(status) + ' fade-in';
+
+      /* top row */
+      var top = document.createElement('div');
+      top.className = 'service-card-top';
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'service-name';
+      setText(nameEl, d.service);
+
+      top.appendChild(nameEl);
+      top.appendChild(makeBadge(status));
+      card.appendChild(top);
+
+      /* meta */
+      var meta = document.createElement('div');
+      meta.className = 'service-meta';
+
+      function metaRow(key, val, extraClass) {
+        var row  = document.createElement('div');
+        row.className = 'meta-row';
+        var k = document.createElement('span');
+        k.className = 'meta-key';
+        setText(k, key);
+        var v = document.createElement('span');
+        v.className = 'meta-val' + (extraClass ? ' ' + extraClass : '');
+        v.title = val;
+        setText(v, truncate(val, 38));
+        row.appendChild(k);
+        row.appendChild(v);
+        return row;
+      }
+
+      meta.appendChild(metaRow('image', image, 'image'));
+      meta.appendChild(metaRow('mode',  mode));
+      meta.appendChild(metaRow('id',    d.id));
+      card.appendChild(meta);
+
+      /* footer */
+      var footer = document.createElement('div');
+      footer.className = 'service-footer';
+
+      var ago = document.createElement('span');
+      ago.className = 'time-ago';
+      setText(ago, formatAgo(d.started_at));
+
+      var rollBtn = document.createElement('button');
+      rollBtn.className = 'btn btn-danger btn-sm';
+      setText(rollBtn, 'Rollback');
+      rollBtn.disabled = !canRollback;
+      rollBtn.title = canRollback ? 'Rollback to previous image' : 'No rollback tag available';
+      (function (svc) {
+        rollBtn.addEventListener('click', function () { confirmRollback(svc); });
+      }(d.service));
+
+      footer.appendChild(ago);
+      footer.appendChild(rollBtn);
+      card.appendChild(footer);
+
+      servicesGrid.appendChild(card);
+    });
+  }
+
+  /* ---- build history table ---- */
+  function buildHistoryTable(deployments) {
+    setText(historyCount, deployments.length);
+    clearEl(historyWrapper);
+
+    if (deployments.length === 0) {
+      historyWrapper.appendChild(makeEmptyState(
+        '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+        'No deployments found.',
+        'border:none; border-radius:0;'
+      ));
+      return;
+    }
+
+    var sorted = deployments.slice().sort(function (a, b) {
+      return new Date(b.started_at) - new Date(a.started_at);
+    });
+
+    /* table skeleton */
+    var table = document.createElement('table');
+    var thead = document.createElement('thead');
+    var headerRow = document.createElement('tr');
+    ['Service', 'Status', 'Image', 'Started', 'Duration', 'Actions'].forEach(function (h) {
+      var th = document.createElement('th');
+      setText(th, h);
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+
+    sorted.forEach(function (d) {
+      var tr = document.createElement('tr');
+      tr.className = 'fade-in';
+
+      /* service */
+      var tdSvc = document.createElement('td');
+      tdSvc.className = 'service-col';
+      setText(tdSvc, d.service);
+
+      /* status */
+      var tdStatus = document.createElement('td');
+      tdStatus.appendChild(makeBadge(d.status || 'pending'));
+
+      /* image */
+      var tdImage = document.createElement('td');
+      tdImage.className = 'mono';
+      tdImage.title = d.image || '';
+      setText(tdImage, truncate(d.image, 40));
+
+      /* started */
+      var tdStarted = document.createElement('td');
+      setText(tdStarted, formatDateTime(d.started_at));
+
+      /* duration */
+      var tdDur = document.createElement('td');
+      tdDur.className = 'duration-val';
+      setText(tdDur, formatDuration(d.started_at, d.completed_at));
+
+      /* actions */
+      var tdAct = document.createElement('td');
+      var logsBtn = document.createElement('button');
+      logsBtn.className = 'btn btn-ghost btn-sm';
+      setText(logsBtn, 'View Logs');
+      (function (dep) {
+        logsBtn.addEventListener('click', function () {
+          openLogs(dep.id, dep.service, dep.status, dep.started_at);
+        });
+      }(d));
+      tdAct.appendChild(logsBtn);
+
+      tr.appendChild(tdSvc);
+      tr.appendChild(tdStatus);
+      tr.appendChild(tdImage);
+      tr.appendChild(tdStarted);
+      tr.appendChild(tdDur);
+      tr.appendChild(tdAct);
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    historyWrapper.appendChild(table);
+  }
+
+  /* ---- fetch data ---- */
+  function fetchHealth() {
+    return apiFetch('/api/health').then(function (data) {
+      setText(versionBadge, data.version ? 'v' + data.version : 'dev');
+    }).catch(function () {
+      setText(versionBadge, 'offline');
+    });
+  }
+
+  function fetchDeployments() {
+    var secret = getSecret();
+    if (!secret) {
+      noSecretBanner.classList.remove('hidden');
+
+      clearEl(servicesGrid);
+      servicesGrid.appendChild(makeEmptyState(
+        '<rect x="9" y="2" width="6" height="6" rx="1"/><path d="M18 8H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2z"/><circle cx="12" cy="15" r="1.5"/>',
+        'Enter your API secret to load service data.'
+      ));
+
+      clearEl(historyWrapper);
+      historyWrapper.appendChild(makeEmptyState(
+        '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+        'Authentication required.',
+        'border:none; border-radius:0;'
+      ));
+      return Promise.resolve();
+    }
+
+    noSecretBanner.classList.add('hidden');
+
+    return apiFetch('/api/deployments').then(function (data) {
+      allDeployments = data.deployments || [];
+      buildServicesGrid(allDeployments);
+      buildHistoryTable(allDeployments);
+      var now = new Date();
+      setText(lastUpdated, 'Updated ' + now.toLocaleTimeString(undefined, {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }));
+    }).catch(function (err) {
+      showToast('Failed to load deployments: ' + err.message, 'error');
+      setText(lastUpdated, 'Update failed');
+    });
+  }
+
+  function refreshAll() {
+    return Promise.all([fetchHealth(), fetchDeployments()]);
+  }
+
+  /* ---- rollback ---- */
+  function confirmRollback(service) {
+    var ok = window.confirm(
+      'Roll back service "' + service + '" to the previous image?\n\n' +
+      'This will restart the container with the last known good image.'
+    );
+    if (!ok) return;
+
+    apiFetch('/api/rollback/' + encodeURIComponent(service), { method: 'POST' })
+      .then(function () {
+        showToast('Rollback initiated for ' + service, 'success');
+        setTimeout(refreshAll, 1500);
+      })
+      .catch(function (err) {
+        showToast('Rollback failed: ' + err.message, 'error');
+      });
+  }
+
+  /* ---- log modal ---- */
+  function classifyLogLine(line) {
+    var l = line.toLowerCase();
+    if (/\b(error|err|fatal|panic|exception)\b/.test(l)) return 'level-error';
+    if (/\b(warn|warning)\b/.test(l)) return 'level-warn';
+    return 'level-info';
+  }
+
+  function openLogs(id, service, status, startedAt) {
+    setText(modalTitle, 'Logs \u2014 ' + service);
+
+    /* build modal-meta with DOM */
+    clearEl(modalMeta);
+    var idSpan = document.createElement('span');
+    idSpan.className = 'modal-meta-item';
+    setText(idSpan, id);
+
+    var dot1 = document.createElement('span');
+    dot1.className = 'modal-meta-item';
+    setText(dot1, '\u00b7');
+
+    var dot2 = document.createElement('span');
+    dot2.className = 'modal-meta-item';
+    setText(dot2, '\u00b7');
+
+    var dtSpan = document.createElement('span');
+    dtSpan.className = 'modal-meta-item';
+    setText(dtSpan, formatDateTime(startedAt));
+
+    modalMeta.appendChild(idSpan);
+    modalMeta.appendChild(dot1);
+    modalMeta.appendChild(makeBadge(status || 'pending'));
+    modalMeta.appendChild(dot2);
+    modalMeta.appendChild(dtSpan);
+
+    /* placeholder */
+    clearEl(logLines);
+    var loading = document.createElement('div');
+    loading.className = 'log-empty';
+    var spinner = document.createElement('span');
+    spinner.className = 'spinner';
+    loading.appendChild(spinner);
+    logLines.appendChild(loading);
+    setText(logLineCount, '');
+
+    /* open */
+    logModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    apiFetch('/api/deployments/' + encodeURIComponent(id) + '/logs')
+      .then(function (data) {
+        var lines = data.logs || [];
+        clearEl(logLines);
+
+        if (lines.length === 0) {
+          var empty = document.createElement('div');
+          empty.className = 'log-empty';
+          setText(empty, 'No log output available for this deployment.');
+          logLines.appendChild(empty);
+          setText(logLineCount, '0 lines');
+          return;
+        }
+
+        setText(logLineCount, lines.length + ' line' + (lines.length !== 1 ? 's' : ''));
+
+        var frag = document.createDocumentFragment();
+        lines.forEach(function (line, i) {
+          var row = document.createElement('div');
+          row.className = 'log-line';
+
+          var num = document.createElement('span');
+          num.className = 'log-num';
+          setText(num, i + 1);
+
+          var txt = document.createElement('span');
+          txt.className = 'log-text ' + classifyLogLine(line);
+          setText(txt, line);
+
+          row.appendChild(num);
+          row.appendChild(txt);
+          frag.appendChild(row);
+        });
+
+        logLines.appendChild(frag);
+
+        var body = logModal.querySelector('.modal-body');
+        if (status === 'running') {
+          body.scrollTop = body.scrollHeight;
+        } else {
+          body.scrollTop = 0;
+        }
+      })
+      .catch(function (err) {
+        clearEl(logLines);
+        var errDiv = document.createElement('div');
+        errDiv.className = 'log-empty';
+        errDiv.style.color = 'var(--red)';
+        setText(errDiv, 'Failed to load logs: ' + err.message);
+        logLines.appendChild(errDiv);
+      });
+  }
+
+  function closeLogs() {
+    logModal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  /* ---- event listeners ---- */
+  saveSecretBtn.addEventListener('click', function () {
+    var val = secretInput.value.trim();
+    setSecret(val);
+    showToast(val ? 'Secret saved.' : 'Secret cleared.', 'success');
+    refreshAll();
+  });
+
+  secretInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { saveSecretBtn.click(); }
+  });
+
+  modalCloseBtn.addEventListener('click', closeLogs);
+  modalCloseFooter.addEventListener('click', closeLogs);
+
+  logModal.addEventListener('click', function (e) {
+    if (e.target === logModal) { closeLogs(); }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && logModal.classList.contains('open')) { closeLogs(); }
+  });
+
+  /* ---- init ---- */
+  var saved = getSecret();
+  if (saved) { secretInput.value = saved; }
+
+  refreshAll();
+  setInterval(refreshAll, REFRESH_INTERVAL);
+
+}());
+</script>
+</body>
+</html>
