@@ -25,6 +25,12 @@ var (
 	version    = "dev"
 	configPath string
 	port       int
+
+	// serverURL and serverSecret are used by the client subcommands (deploy,
+	// rollback, logs, status). They are registered as persistent flags on
+	// rootCmd so every subcommand inherits them.
+	serverURL    string
+	serverSecret string
 )
 
 var rootCmd = &cobra.Command{
@@ -37,6 +43,11 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "config.yaml", "Path to configuration file")
 	rootCmd.Flags().IntVar(&port, "port", 0, "Port to listen on (overrides config file)")
+
+	// Client flags — persistent so all subcommands (deploy, rollback, logs,
+	// status) can read them without re-declaring.
+	rootCmd.PersistentFlags().StringVarP(&serverURL, "server", "s", serverURLDefault(), "DeployDeck server URL")
+	rootCmd.PersistentFlags().StringVar(&serverSecret, "secret", serverSecretDefault(), "Auth secret (X-DeployDeck-Secret header)")
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
