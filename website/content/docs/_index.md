@@ -178,7 +178,7 @@ rate_limit:
   burst_size: 5                       # Maximum burst above steady rate
 
 dashboard:
-  enabled: false                      # Dashboard (planned feature)
+  enabled: false                      # Enable dashboard at /dashboard/
   username: "admin"
   password: "change-me"
 
@@ -736,6 +736,74 @@ services:
 ```bash
 curl -s https://deploy.example.com/api/health | jq .
 ```
+
+</section>
+
+<section id="dashboard" class="docs-section">
+
+## Dashboard
+
+DeployDeck includes a built-in web dashboard for monitoring deployments in real time. It provides a services overview, full deployment history, log viewer, and one-click rollback — no extra tools required.
+
+### Enabling the Dashboard
+
+The dashboard is disabled by default. Enable it in `config.yaml`:
+
+```yaml
+dashboard:
+  enabled: true
+```
+
+Once enabled, the dashboard is served at `/dashboard/` on the same port as the API.
+
+```bash
+# If running on port 9000
+open http://localhost:9000/dashboard/
+```
+
+### Authentication
+
+The dashboard reads deployment data from `GET /api/deployments`, which requires the same `webhook_secret` used for webhook authentication.
+
+On first visit, enter your secret in the **API Secret** field in the top-right corner and click **Save**. The secret is stored in `localStorage` and sent as `X-DeployDeck-Secret` on every request. It persists across page reloads.
+
+### Services
+
+The top section shows one card per service, reflecting its most recent deployment:
+
+- **Status badge** — color-coded: Success, Running, Failed, Rolled back, Pending
+- **Image** — the Docker image that was deployed
+- **Mode** — `pull` or `build`
+- **ID** — the deployment ID of the latest run
+- **Rollback button** — enabled when a rollback snapshot is available (status is `success` or `failed` and `rollback_tag` is set). Triggers `POST /api/rollback/:service` after a native confirmation dialog.
+
+### Deployment History
+
+Below the services grid, a table lists all deployments sorted by most recent first:
+
+| Column | Description |
+|--------|-------------|
+| Service | Service name |
+| Status | Current deployment status |
+| Image | Docker image deployed |
+| Started | Date and time the deployment started |
+| Duration | Time from start to completion |
+| Actions | "View Logs" button |
+
+The table auto-refreshes every 10 seconds.
+
+### Log Viewer
+
+Click **View Logs** on any deployment to open a modal with the full log output captured during that deployment. Log lines are color-coded: errors in red, warnings in amber. For running deployments, the view scrolls to the latest line automatically.
+
+### Configuration Reference
+
+```yaml
+dashboard:
+  enabled: false   # Set to true to enable the dashboard at /dashboard/
+```
+
+There are no username/password fields currently enforced by the dashboard — access is controlled solely by the `webhook_secret`.
 
 </section>
 

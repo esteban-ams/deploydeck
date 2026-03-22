@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//go:embed dashboard.html
+//go:embed index.html
 var files embed.FS
 
 // Handler returns an http.Handler that serves the embedded dashboard UI.

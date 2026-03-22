@@ -8,26 +8,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #0f1117;
-      --surface:    #1a1d27;
-      --surface-2:  #21253a;
-      --border:     #2a2e42;
-      --coral:      #ff6b6b;
-      --coral-dim:  rgba(255,107,107,0.12);
-      --coral-glow: rgba(255,107,107,0.25);
-      --text:       #e8eaf0;
-      --text-muted: #7a7f99;
-      --text-dim:   #4a4f6a;
-      --green:      #2ecc71;
-      --red:        #e74c3c;
-      --yellow:     #f39c12;
-      --orange:     #e67e22;
-      --grey:       #95a5a6;
-      --radius:     10px;
-      --radius-sm:  6px;
-      --shadow:     0 4px 24px rgba(0,0,0,0.4);
-      --font:       -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      --mono:       'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      --bg:        #f5f5f5;
+      --surface:   #ffffff;
+      --border:    #e0e0e0;
+      --text:      #1a1a1a;
+      --text-muted:#555555;
+      --text-dim:  #888888;
+      --font:      -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      --mono:      'SF Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      --success:   #16a34a;
+      --failed:    #dc2626;
+      --running:   #ca8a04;
+      --rolled:    #ea580c;
+      --pending:   #6b7280;
     }
 
     html { font-size: 14px; }
@@ -40,11 +33,6 @@
       min-height: 100vh;
     }
 
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--surface); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
-
     .page { max-width: 1280px; margin: 0 auto; padding: 0 24px 48px; }
 
     /* Header */
@@ -54,26 +42,17 @@
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 16px;
-      padding: 20px 0 18px;
+      padding: 18px 0 16px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 24px;
     }
-    .header-left { display: flex; align-items: center; gap: 14px; }
-    .logo { display: flex; align-items: center; gap: 10px; }
-    .logo-icon {
-      width: 36px; height: 36px;
-      background: var(--coral);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .logo-icon svg { width: 20px; height: 20px; fill: #fff; }
-    .logo-text { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .logo-text { font-size: 1.1rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
     .version-badge {
       font-size: 0.72rem; font-family: var(--mono);
-      background: var(--coral-dim); color: var(--coral);
-      border: 1px solid var(--coral-glow);
-      padding: 2px 8px; border-radius: 20px; font-weight: 500;
+      background: #f0f0f0; color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 2px;
     }
     .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .secret-form { display: flex; align-items: center; gap: 8px; }
@@ -81,252 +60,206 @@
     .secret-input {
       background: var(--surface); border: 1px solid var(--border);
       color: var(--text); font-family: var(--mono); font-size: 0.78rem;
-      padding: 6px 10px; border-radius: var(--radius-sm);
-      width: 180px; outline: none; transition: border-color 0.15s;
+      padding: 5px 10px; border-radius: 2px;
+      width: 180px; outline: none; transition: border-color 0.12s;
     }
-    .secret-input:focus { border-color: var(--coral); }
+    .secret-input:focus { border-color: #999; }
+    .docs-link {
+      font-size: 0.78rem; color: var(--text-muted); text-decoration: none;
+      border: 1px solid var(--border); padding: 4px 10px; border-radius: 2px;
+      white-space: nowrap; background: var(--surface);
+      transition: background 0.1s, color 0.1s;
+    }
+    .docs-link:hover { background: #f0f0f0; color: var(--text); }
     .refresh-info { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
 
     /* Buttons */
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 14px; border-radius: var(--radius-sm);
+      padding: 5px 12px; border-radius: 2px;
       font-size: 0.8rem; font-weight: 500; font-family: var(--font);
-      cursor: pointer; border: none;
-      transition: opacity 0.15s, transform 0.1s;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted);
+      transition: background 0.1s, border-color 0.1s, color 0.1s;
       white-space: nowrap;
     }
-    .btn:active { transform: scale(0.97); }
+    .btn:hover:not(:disabled) { background: #f0f0f0; color: var(--text); border-color: #ccc; }
+    .btn:active:not(:disabled) { background: #e8e8e8; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary { background: var(--coral); color: #fff; }
-    .btn-primary:hover:not(:disabled) { opacity: 0.88; }
-    .btn-ghost {
-      background: var(--surface-2); color: var(--text-muted);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--text-dim); }
     .btn-danger {
-      background: rgba(231,76,60,0.12); color: var(--red);
-      border: 1px solid rgba(231,76,60,0.3);
+      color: var(--failed); border-color: #fca5a5;
     }
-    .btn-danger:hover:not(:disabled) { background: rgba(231,76,60,0.2); }
-    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+    .btn-danger:hover:not(:disabled) { background: #fef2f2; border-color: #f87171; }
+    .btn-sm { padding: 3px 9px; font-size: 0.75rem; }
 
     /* Banner */
     .banner {
       display: flex; align-items: center; gap: 10px;
-      background: rgba(243,156,18,0.1); border: 1px solid rgba(243,156,18,0.3);
-      color: #f5c842; padding: 10px 16px; border-radius: var(--radius);
-      font-size: 0.82rem; margin-bottom: 24px;
+      background: #fffbeb; border: 1px solid #fde68a;
+      color: #92400e; padding: 9px 14px; border-radius: 2px;
+      font-size: 0.82rem; margin-bottom: 20px;
     }
     .banner.hidden { display: none; }
 
     /* Sections */
-    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     .section-title {
       font-size: 0.72rem; font-weight: 600;
-      letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
     }
     .section-count {
       font-size: 0.72rem; color: var(--text-dim);
-      background: var(--surface-2); padding: 2px 8px;
-      border-radius: 20px; border: 1px solid var(--border);
+      background: var(--surface); padding: 1px 7px;
+      border-radius: 2px; border: 1px solid var(--border);
     }
 
     /* Services grid */
     .services-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px; margin-bottom: 40px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px; margin-bottom: 36px;
     }
     .service-card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 20px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      position: relative; overflow: hidden;
+      border-radius: 2px; padding: 16px;
+      border-left-width: 3px;
     }
-    .service-card::before {
-      content: ''; position: absolute;
-      top: 0; left: 0; width: 3px; height: 100%;
-      border-radius: var(--radius) 0 0 var(--radius);
-    }
-    .service-card.status-success::before    { background: var(--green); }
-    .service-card.status-failed::before     { background: var(--red); }
-    .service-card.status-running::before    { background: var(--yellow); }
-    .service-card.status-rolled_back::before { background: var(--orange); }
-    .service-card.status-pending::before    { background: var(--grey); }
-    .service-card:hover { border-color: var(--text-dim); box-shadow: var(--shadow); }
+    .service-card.status-success     { border-left-color: var(--success); }
+    .service-card.status-failed      { border-left-color: var(--failed); }
+    .service-card.status-running     { border-left-color: var(--running); }
+    .service-card.status-rolled_back { border-left-color: var(--rolled); }
+    .service-card.status-pending     { border-left-color: var(--pending); }
 
     .service-card-top {
       display: flex; align-items: flex-start;
-      justify-content: space-between; gap: 8px; margin-bottom: 14px;
+      justify-content: space-between; gap: 8px; margin-bottom: 12px;
     }
-    .service-name { font-size: 0.95rem; font-weight: 600; color: var(--text); word-break: break-all; }
+    .service-name { font-size: 0.9rem; font-weight: 600; color: var(--text); word-break: break-all; }
 
     /* Status badges */
     .status-badge {
-      display: inline-flex; align-items: center; gap: 5px;
+      display: inline-block;
       font-size: 0.7rem; font-weight: 600;
-      padding: 3px 9px; border-radius: 20px;
+      padding: 2px 7px; border-radius: 2px;
       white-space: nowrap; flex-shrink: 0;
     }
-    .status-badge .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .badge-success      { background: rgba(46,204,113,0.12); color: var(--green); }
-    .badge-success .dot { background: var(--green); }
-    .badge-failed       { background: rgba(231,76,60,0.12);  color: var(--red); }
-    .badge-failed .dot  { background: var(--red); }
-    .badge-running      { background: rgba(243,156,18,0.12); color: var(--yellow); }
-    .badge-running .dot { background: var(--yellow); animation: pulse 1.2s infinite; }
-    .badge-rolled_back      { background: rgba(230,126,34,0.12); color: var(--orange); }
-    .badge-rolled_back .dot { background: var(--orange); }
-    .badge-pending      { background: rgba(149,165,166,0.12); color: var(--grey); }
-    .badge-pending .dot { background: var(--grey); }
+    .badge-success     { background: #dcfce7; color: var(--success); }
+    .badge-failed      { background: #fee2e2; color: var(--failed); }
+    .badge-running     { background: #fef9c3; color: var(--running); }
+    .badge-rolled_back { background: #ffedd5; color: var(--rolled); }
+    .badge-pending     { background: #f3f4f6; color: var(--pending); }
 
-    @keyframes pulse {
-      0%,100% { opacity: 1; transform: scale(1); }
-      50%      { opacity: 0.4; transform: scale(0.7); }
-    }
-
-    .service-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .service-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
     .meta-row { display: flex; align-items: baseline; gap: 8px; }
     .meta-key {
-      font-size: 0.7rem; color: var(--text-dim);
+      font-size: 0.68rem; color: var(--text-dim);
       text-transform: uppercase; letter-spacing: 0.06em;
-      width: 48px; flex-shrink: 0;
+      width: 42px; flex-shrink: 0;
     }
     .meta-val {
-      font-size: 0.78rem; color: var(--text-muted); font-family: var(--mono);
+      font-size: 0.76rem; color: var(--text-muted); font-family: var(--mono);
       word-break: break-all; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
     }
-    .meta-val.image { color: var(--coral); }
 
     .service-footer {
       display: flex; align-items: center; justify-content: space-between;
-      padding-top: 14px; border-top: 1px solid var(--border);
+      padding-top: 12px; border-top: 1px solid var(--border);
     }
-    .time-ago { font-size: 0.72rem; color: var(--text-dim); }
+    .time-ago { font-size: 0.71rem; color: var(--text-dim); }
 
     /* Empty states */
     .empty-state {
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 12px; padding: 48px 24px;
+      justify-content: center; gap: 10px; padding: 40px 24px;
       text-align: center; color: var(--text-dim);
       background: var(--surface);
-      border: 1px dashed var(--border); border-radius: var(--radius);
+      border: 1px solid var(--border); border-radius: 2px;
     }
-    .empty-state svg { opacity: 0.3; }
     .empty-state p { font-size: 0.82rem; }
 
     /* Table */
     .table-wrapper {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden;
+      border-radius: 2px; overflow: hidden;
     }
     table { width: 100%; border-collapse: collapse; }
     thead th {
-      padding: 11px 16px; text-align: left;
+      padding: 9px 14px; text-align: left;
       font-size: 0.68rem; font-weight: 600;
-      letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--text-dim); background: var(--surface-2);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--text-dim); background: #fafafa;
       border-bottom: 1px solid var(--border); white-space: nowrap;
     }
-    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+    tbody tr { border-bottom: 1px solid var(--border); }
     tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: rgba(255,255,255,0.025); }
-    tbody td { padding: 11px 16px; font-size: 0.8rem; color: var(--text-muted); vertical-align: middle; }
-    tbody td.mono { font-family: var(--mono); font-size: 0.75rem; }
+    tbody tr:hover { background: #fafafa; }
+    tbody td { padding: 9px 14px; font-size: 0.8rem; color: var(--text-muted); vertical-align: middle; }
+    tbody td.mono { font-family: var(--mono); font-size: 0.74rem; }
     tbody td.service-col { font-weight: 600; color: var(--text); }
-    .duration-val { font-family: var(--mono); font-size: 0.75rem; }
+    .duration-val { font-family: var(--mono); font-size: 0.74rem; }
 
     /* Modal */
     .modal-overlay {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(4px);
+      background: rgba(0,0,0,0.4);
       z-index: 100;
       display: flex; align-items: center; justify-content: center;
       padding: 24px;
-      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+      opacity: 0; pointer-events: none; transition: opacity 0.15s;
     }
     .modal-overlay.open { opacity: 1; pointer-events: all; }
     .modal {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: 2px;
       width: 100%; max-width: 860px; max-height: 80vh;
       display: flex; flex-direction: column;
-      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
-      transform: translateY(12px); transition: transform 0.2s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
     }
-    .modal-overlay.open .modal { transform: translateY(0); }
     .modal-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 20px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+      padding: 14px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    .modal-title { font-size: 0.9rem; font-weight: 600; }
+    .modal-title { font-size: 0.88rem; font-weight: 600; }
     .modal-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
-    .modal-meta-item { font-size: 0.72rem; color: var(--text-dim); font-family: var(--mono); }
+    .modal-meta-item { font-size: 0.71rem; color: var(--text-dim); font-family: var(--mono); }
     .modal-close {
-      background: var(--surface-2); border: 1px solid var(--border);
-      color: var(--text-muted); width: 28px; height: 28px;
-      border-radius: 6px; cursor: pointer;
+      background: none; border: 1px solid var(--border);
+      color: var(--text-muted); width: 26px; height: 26px;
+      border-radius: 2px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; font-size: 1rem; line-height: 1;
-      transition: color 0.15s, border-color 0.15s;
+      transition: background 0.1s;
     }
-    .modal-close:hover { color: var(--text); border-color: var(--text-dim); }
-    .modal-body { overflow-y: auto; padding: 16px 0; flex: 1; }
+    .modal-close:hover { background: #f0f0f0; color: var(--text); }
+    .modal-body { overflow-y: auto; padding: 12px 0; flex: 1; }
 
     /* Log viewer */
-    .log-lines { font-family: var(--mono); font-size: 0.73rem; line-height: 1.7; color: #c8cfe8; }
-    .log-line { display: flex; gap: 0; padding: 0 20px; }
-    .log-line:hover { background: rgba(255,255,255,0.03); }
+    .log-lines { font-family: var(--mono); font-size: 0.73rem; line-height: 1.7; color: var(--text); }
+    .log-line { display: flex; gap: 0; padding: 0 18px; }
+    .log-line:hover { background: #fafafa; }
     .log-num { color: var(--text-dim); min-width: 36px; user-select: none; text-align: right; padding-right: 14px; flex-shrink: 0; }
     .log-text { word-break: break-all; white-space: pre-wrap; }
-    .log-text.level-error { color: #ff7b72; }
-    .log-text.level-warn  { color: #e3b341; }
-    .log-empty { padding: 32px 20px; text-align: center; color: var(--text-dim); font-family: var(--mono); font-size: 0.78rem; }
+    .log-text.level-error { color: var(--failed); }
+    .log-text.level-warn  { color: var(--running); }
+    .log-empty { padding: 28px 18px; text-align: center; color: var(--text-dim); font-family: var(--mono); font-size: 0.78rem; }
 
     .modal-footer {
-      padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0;
+      padding: 10px 18px; border-top: 1px solid var(--border); flex-shrink: 0;
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
-    .log-count { font-size: 0.72rem; color: var(--text-dim); }
+    .log-count { font-size: 0.71rem; color: var(--text-dim); }
 
     /* Spinner */
     .spinner {
       display: inline-block; width: 14px; height: 14px;
-      border: 2px solid var(--border); border-top-color: var(--coral);
+      border: 2px solid var(--border); border-top-color: var(--text-dim);
       border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Toast */
-    .toast-container {
-      position: fixed; bottom: 24px; right: 24px; z-index: 200;
-      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
-    }
-    .toast {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius-sm); padding: 10px 16px;
-      font-size: 0.8rem; color: var(--text);
-      box-shadow: var(--shadow); pointer-events: all;
-      animation: slideIn 0.25s ease; max-width: 320px;
-    }
-    .toast.success { border-color: rgba(46,204,113,0.5); }
-    .toast.error   { border-color: rgba(231,76,60,0.5); color: #ff7b72; }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(20px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-
-    /* Misc */
-    .divider { height: 1px; background: var(--border); margin: 32px 0; }
-    .fade-in { animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    /* Divider */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
 
     /* Responsive */
     @media (max-width: 700px) {
@@ -345,14 +278,7 @@
 
   <header class="header">
     <div class="header-left">
-      <div class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-          </svg>
-        </div>
-        <span class="logo-text">DeployDeck</span>
-      </div>
+      <span class="logo-text">DeployDeck</span>
       <span class="version-badge" id="version-badge">v&mdash;</span>
     </div>
     <div class="header-right">
@@ -362,22 +288,18 @@
           class="secret-input"
           id="secret-input"
           type="password"
-          placeholder="your-webhook-secret"
+          placeholder="webhook-secret"
           autocomplete="off"
           spellcheck="false"
         />
-        <button class="btn btn-ghost btn-sm" id="save-secret-btn">Save</button>
+        <button class="btn btn-sm" id="save-secret-btn">Save</button>
       </div>
+      <a class="docs-link" href="https://esteban-ams.github.io/deploydeck/docs/" target="_blank" rel="noopener">Docs</a>
       <span class="refresh-info" id="last-updated">&mdash;</span>
     </div>
   </header>
 
   <div class="banner hidden" id="no-secret-banner">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-      <line x1="12" y1="9" x2="12" y2="13"/>
-      <line x1="12" y1="17" x2="12.01" y2="17"/>
-    </svg>
     Enter your API secret above to view deployments.
   </div>
 
@@ -387,10 +309,6 @@
   </div>
   <div class="services-grid" id="services-grid">
     <div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="2" y="3" width="20" height="14" rx="2"/>
-        <path d="M8 21h8M12 17v4"/>
-      </svg>
       <p>No services deployed yet.</p>
     </div>
   </div>
@@ -403,12 +321,6 @@
   </div>
   <div class="table-wrapper" id="history-wrapper">
     <div class="empty-state" style="border:none; border-radius:0;">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-      </svg>
       <p>No deployments found.</p>
     </div>
   </div>
@@ -431,12 +343,10 @@
     </div>
     <div class="modal-footer">
       <span class="log-count" id="log-line-count"></span>
-      <button class="btn btn-ghost btn-sm" id="modal-close-footer-btn">Close</button>
+      <button class="btn btn-sm" id="modal-close-footer-btn">Close</button>
     </div>
   </div>
 </div>
-
-<div class="toast-container" id="toast-container"></div>
 
 <script>
 (function () {
@@ -464,7 +374,6 @@
   var logLineCount       = document.getElementById('log-line-count');
   var modalCloseBtn      = document.getElementById('modal-close-btn');
   var modalCloseFooter   = document.getElementById('modal-close-footer-btn');
-  var toastContainer     = document.getElementById('toast-container');
 
   /* ---- storage ---- */
   function getSecret() { return localStorage.getItem(SECRET_KEY) || ''; }
@@ -510,10 +419,8 @@
     return str.length > n ? str.slice(0, n) + '\u2026' : str;
   }
 
-  /* ---- safe DOM creation ---- */
+  /* ---- safe DOM helpers ---- */
   function esc(str) {
-    /* Used only where we must build attribute strings for data-* or onclick.
-       For text nodes we always use textContent. */
     return String(str || '')
       .replace(/&/g, '&amp;')
       .replace(/"/g, '&quot;')
@@ -524,7 +431,11 @@
 
   function setText(el, txt) { el.textContent = txt; }
 
-  /* ---- status badge (DOM, no innerHTML) ---- */
+  function clearEl(el) {
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+  }
+
+  /* ---- status badge ---- */
   function makeBadge(status) {
     var labels = {
       success: 'Success', failed: 'Failed', running: 'Running',
@@ -532,24 +443,8 @@
     };
     var span = document.createElement('span');
     span.className = 'status-badge badge-' + esc(status);
-    var dot = document.createElement('span');
-    dot.className = 'dot';
-    span.appendChild(dot);
     span.appendChild(document.createTextNode(labels[status] || status));
     return span;
-  }
-
-  /* ---- toast ---- */
-  function showToast(msg, type) {
-    var el = document.createElement('div');
-    el.className = 'toast' + (type ? ' ' + type : '');
-    setText(el, msg);
-    toastContainer.appendChild(el);
-    setTimeout(function () {
-      el.style.transition = 'opacity 0.3s';
-      el.style.opacity = '0';
-      setTimeout(function () { el.remove(); }, 300);
-    }, 3000);
   }
 
   /* ---- API ---- */
@@ -567,29 +462,13 @@
       });
   }
 
-  /* ---- clear helpers ---- */
-  function clearEl(el) {
-    while (el.firstChild) { el.removeChild(el.firstChild); }
-  }
-
   /* ---- empty state ---- */
-  function makeEmptyState(iconPath, msg, extraStyle) {
+  function makeEmptyState(msg, extraStyle) {
     var wrap = document.createElement('div');
-    wrap.className = 'empty-state fade-in';
+    wrap.className = 'empty-state';
     if (extraStyle) { wrap.setAttribute('style', extraStyle); }
-
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', '40');
-    svg.setAttribute('height', '40');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '1.5');
-    svg.innerHTML = iconPath; /* static trusted SVG paths only */
-
     var p = document.createElement('p');
     setText(p, msg);
-    wrap.appendChild(svg);
     wrap.appendChild(p);
     return wrap;
   }
@@ -608,10 +487,7 @@
     clearEl(servicesGrid);
 
     if (latest.size === 0) {
-      servicesGrid.appendChild(makeEmptyState(
-        '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
-        'No services deployed yet.'
-      ));
+      servicesGrid.appendChild(makeEmptyState('No services deployed yet.'));
       return;
     }
 
@@ -620,14 +496,13 @@
     entries.sort(function (a, b) { return a.service.localeCompare(b.service); });
 
     entries.forEach(function (d) {
-      var status     = d.status || 'pending';
-      var image      = d.image  || '\u2014';
-      var mode       = d.mode   || '\u2014';
+      var status      = d.status || 'pending';
+      var image       = d.image  || '\u2014';
+      var mode        = d.mode   || '\u2014';
       var canRollback = d.rollback_tag && (status === 'success' || status === 'failed');
 
-      /* card */
       var card = document.createElement('div');
-      card.className = 'service-card status-' + esc(status) + ' fade-in';
+      card.className = 'service-card status-' + esc(status);
 
       /* top row */
       var top = document.createElement('div');
@@ -645,14 +520,14 @@
       var meta = document.createElement('div');
       meta.className = 'service-meta';
 
-      function metaRow(key, val, extraClass) {
-        var row  = document.createElement('div');
+      function metaRow(key, val) {
+        var row = document.createElement('div');
         row.className = 'meta-row';
         var k = document.createElement('span');
         k.className = 'meta-key';
         setText(k, key);
         var v = document.createElement('span');
-        v.className = 'meta-val' + (extraClass ? ' ' + extraClass : '');
+        v.className = 'meta-val';
         v.title = val;
         setText(v, truncate(val, 38));
         row.appendChild(k);
@@ -660,7 +535,7 @@
         return row;
       }
 
-      meta.appendChild(metaRow('image', image, 'image'));
+      meta.appendChild(metaRow('image', image));
       meta.appendChild(metaRow('mode',  mode));
       meta.appendChild(metaRow('id',    d.id));
       card.appendChild(meta);
@@ -696,11 +571,7 @@
     clearEl(historyWrapper);
 
     if (deployments.length === 0) {
-      historyWrapper.appendChild(makeEmptyState(
-        '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
-        'No deployments found.',
-        'border:none; border-radius:0;'
-      ));
+      historyWrapper.appendChild(makeEmptyState('No deployments found.', 'border:none; border-radius:0;'));
       return;
     }
 
@@ -708,7 +579,6 @@
       return new Date(b.started_at) - new Date(a.started_at);
     });
 
-    /* table skeleton */
     var table = document.createElement('table');
     var thead = document.createElement('thead');
     var headerRow = document.createElement('tr');
@@ -724,36 +594,29 @@
 
     sorted.forEach(function (d) {
       var tr = document.createElement('tr');
-      tr.className = 'fade-in';
 
-      /* service */
       var tdSvc = document.createElement('td');
       tdSvc.className = 'service-col';
       setText(tdSvc, d.service);
 
-      /* status */
       var tdStatus = document.createElement('td');
       tdStatus.appendChild(makeBadge(d.status || 'pending'));
 
-      /* image */
       var tdImage = document.createElement('td');
       tdImage.className = 'mono';
       tdImage.title = d.image || '';
       setText(tdImage, truncate(d.image, 40));
 
-      /* started */
       var tdStarted = document.createElement('td');
       setText(tdStarted, formatDateTime(d.started_at));
 
-      /* duration */
       var tdDur = document.createElement('td');
       tdDur.className = 'duration-val';
       setText(tdDur, formatDuration(d.started_at, d.completed_at));
 
-      /* actions */
       var tdAct = document.createElement('td');
       var logsBtn = document.createElement('button');
-      logsBtn.className = 'btn btn-ghost btn-sm';
+      logsBtn.className = 'btn btn-sm';
       setText(logsBtn, 'View Logs');
       (function (dep) {
         logsBtn.addEventListener('click', function () {
@@ -790,17 +653,10 @@
       noSecretBanner.classList.remove('hidden');
 
       clearEl(servicesGrid);
-      servicesGrid.appendChild(makeEmptyState(
-        '<rect x="9" y="2" width="6" height="6" rx="1"/><path d="M18 8H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2z"/><circle cx="12" cy="15" r="1.5"/>',
-        'Enter your API secret to load service data.'
-      ));
+      servicesGrid.appendChild(makeEmptyState('Enter your API secret to load service data.'));
 
       clearEl(historyWrapper);
-      historyWrapper.appendChild(makeEmptyState(
-        '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
-        'Authentication required.',
-        'border:none; border-radius:0;'
-      ));
+      historyWrapper.appendChild(makeEmptyState('Authentication required.', 'border:none; border-radius:0;'));
       return Promise.resolve();
     }
 
@@ -815,8 +671,7 @@
         hour: '2-digit', minute: '2-digit', second: '2-digit'
       }));
     }).catch(function (err) {
-      showToast('Failed to load deployments: ' + err.message, 'error');
-      setText(lastUpdated, 'Update failed');
+      setText(lastUpdated, 'Update failed: ' + err.message);
     });
   }
 
@@ -834,11 +689,10 @@
 
     apiFetch('/api/rollback/' + encodeURIComponent(service), { method: 'POST' })
       .then(function () {
-        showToast('Rollback initiated for ' + service, 'success');
         setTimeout(refreshAll, 1500);
       })
       .catch(function (err) {
-        showToast('Rollback failed: ' + err.message, 'error');
+        alert('Rollback failed: ' + err.message);
       });
   }
 
@@ -853,31 +707,29 @@
   function openLogs(id, service, status, startedAt) {
     setText(modalTitle, 'Logs \u2014 ' + service);
 
-    /* build modal-meta with DOM */
     clearEl(modalMeta);
     var idSpan = document.createElement('span');
     idSpan.className = 'modal-meta-item';
     setText(idSpan, id);
 
-    var dot1 = document.createElement('span');
-    dot1.className = 'modal-meta-item';
-    setText(dot1, '\u00b7');
+    var sep1 = document.createElement('span');
+    sep1.className = 'modal-meta-item';
+    setText(sep1, '\u00b7');
 
-    var dot2 = document.createElement('span');
-    dot2.className = 'modal-meta-item';
-    setText(dot2, '\u00b7');
+    var sep2 = document.createElement('span');
+    sep2.className = 'modal-meta-item';
+    setText(sep2, '\u00b7');
 
     var dtSpan = document.createElement('span');
     dtSpan.className = 'modal-meta-item';
     setText(dtSpan, formatDateTime(startedAt));
 
     modalMeta.appendChild(idSpan);
-    modalMeta.appendChild(dot1);
+    modalMeta.appendChild(sep1);
     modalMeta.appendChild(makeBadge(status || 'pending'));
-    modalMeta.appendChild(dot2);
+    modalMeta.appendChild(sep2);
     modalMeta.appendChild(dtSpan);
 
-    /* placeholder */
     clearEl(logLines);
     var loading = document.createElement('div');
     loading.className = 'log-empty';
@@ -887,7 +739,6 @@
     logLines.appendChild(loading);
     setText(logLineCount, '');
 
-    /* open */
     logModal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
@@ -938,7 +789,7 @@
         clearEl(logLines);
         var errDiv = document.createElement('div');
         errDiv.className = 'log-empty';
-        errDiv.style.color = 'var(--red)';
+        errDiv.style.color = 'var(--failed)';
         setText(errDiv, 'Failed to load logs: ' + err.message);
         logLines.appendChild(errDiv);
       });
@@ -953,7 +804,6 @@
   saveSecretBtn.addEventListener('click', function () {
     var val = secretInput.value.trim();
     setSecret(val);
-    showToast(val ? 'Secret saved.' : 'Secret cleared.', 'success');
     refreshAll();
   });
 
